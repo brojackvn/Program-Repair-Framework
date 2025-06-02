@@ -9,20 +9,20 @@ for i in "${BUG_ID[@]}";
 do
     echo "********************************************************************"
     
-    python3 -m src.main prompt-apr \
+    python3 -m src.main prompt-apr-with-bic \
         --dataset regminer4apr \
-        --data-id 5 \
+        --data-id "$i" \
         --input-dir /external_disk/coding_space/ChatRepairRegression/experiments/regminer4apr-bug-metadata.json \
         --mapping-dir /external_disk/coding_space/ChatRepairRegression/experiments/mapping.txt \
         --output-dir /external_disk/coding_space/ChatRepairRegression/experiments/output \
-        --tmp-dir /external_disk/coding_space/ChatRepairRegression/experiments/tmp-prompt \
+        --tmp-dir /external_disk/coding_space/ChatRepairRegression/experiments/tmp-prompt-bic \
         --env-dir /external_disk/coding_space/ChatRepairRegression/experiments/environments/regminer4apr \
         --time-limit 1800 \
         --sample-size 10 \
-        --model-name "gpt-4o" \
+        --model-name "gpt-3.5-turbo" \
         --temperature 1 \
         --top-p 0.95 \
-        --early-stop    
-
+        --early-stop      
+    
     echo "********************************************************************"
-done
+done 
