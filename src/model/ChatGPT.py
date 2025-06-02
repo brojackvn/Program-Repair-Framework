@@ -7,7 +7,8 @@ import os
 import re
 
 load_dotenv()
-api_key = os.getenv("PERSONAL_API_KEY")
+api_key = os.getenv("LAB_API_KEY")
+# api_key = os.getenv("PERSONAL_API_KEY")
 client = OpenAI(api_key=api_key)
 
 class ChatGPT(AbstractRepair):
@@ -83,5 +84,9 @@ class ChatGPT(AbstractRepair):
         Return:
             - patch: Decoded patch
         '''
-        match = re.search(r"```java\n(.*?)\n```", patch, re.DOTALL)
-        return match.group(1) if match else None
+        # Regular expression to capture code between triple backticks with 'java'
+        code_blocks = re.findall(r'```java\s*(.*?)\s*```', patch, re.DOTALL)
+        if not code_blocks:
+            return None
+        else:
+            return max(code_blocks, key=len)

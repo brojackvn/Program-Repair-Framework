@@ -95,12 +95,23 @@ class RegMiner4APR(AbstractBenchmark):
             buggy_relative_path = id.split("_")[1]
             src_dir = os.path.join(self.enviroment_dir, bug_id, "BUGGY")
             buggy_file = os.path.join(src_dir, buggy_relative_path)
-            buggy_loc = (int(dataset[id]['start_line']), int(dataset[id]['end_line']))
             method_loc = (int(dataset[id]['method_start_line']), int(dataset[id]['method_end_line']))
             buggy_function = dataset[id]['context']
             before_buggy = dataset[id]['before']
             buggy_lines = dataset[id]['buggy_lines']
             after_buggy = dataset[id]['after']
+
+            buggy_loc = None
+            if 'start_line' in dataset[id] and 'end_line' in dataset[id]:
+                buggy_loc = (int(dataset[id]['start_line']), int(dataset[id]['end_line']))
+
+            bug_inducing_changes = None
+            if 'bug_inducing_changes' in dataset[id]:
+                bug_inducing_changes = dataset[id]['bug_inducing_changes']
+            
+            bic_commit_message = None
+            if 'bic_commit_message' in dataset[id]:
+                bic_commit_message = dataset[id]['bic_commit_message']
 
             info[data_id] = {
                 'bug_id': bug_id,
@@ -112,7 +123,9 @@ class RegMiner4APR(AbstractBenchmark):
                 'buggy_lines': buggy_lines,
                 'after_buggy': after_buggy,
                 'buggy_loc': buggy_loc,
-                'method_loc': method_loc
+                'method_loc': method_loc,
+                'bug_inducing_changes': bug_inducing_changes,
+                'bic_commit_message': bic_commit_message
             }
         return info
 
@@ -188,7 +201,7 @@ class RegMiner4APR(AbstractBenchmark):
 
         # Get compile result
         cmd = "cd " + validation_dir + ";"
-        cmd += 'regminer4apr compile' # Compile the program
+        cmd += 'export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 && export PATH=$JAVA_HOME/bin:$PATH && regminer4apr compile' # Compile the program
 
         command_result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         result_message = command_result.stdout.decode('utf-8')
@@ -205,7 +218,7 @@ class RegMiner4APR(AbstractBenchmark):
         if not compile_error_flag:
             # Running the test cases
             cmd = "cd " + validation_dir + ";"
-            cmd += 'timeout 720 regminer4apr test' # Test the program
+            cmd += 'export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 && export PATH=$JAVA_HOME/bin:$PATH && timeout 720 regminer4apr test' # Test the program
             command_result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             result_message = command_result.stdout.decode('utf-8')
             logger.debug(command_result.stdout.decode('utf-8'))
@@ -309,14 +322,14 @@ class RegMiner4APR(AbstractBenchmark):
                 
                 return patched_method, (new_start_method_loc, new_end_method_loc)
             
-            # Write the patch to the buggy file
+            # If the response is None, meaning the patch is not generated
             if patch is None:
                 logger.warning("Cannot generate the patch!")
                 write_json_file(
                     {
                         "patch": None,
                         "patched_method_loc": None,
-                        "status": None,
+                        "status": "[ResponseError]",
                         "error_message": None,
                         "validation_time": None,
                     },
@@ -327,10 +340,22 @@ class RegMiner4APR(AbstractBenchmark):
                 continue
 
             patched_method, patched_method_loc = apply_patch(validation_dir, buggy_relative_path, patch, method_loc)
-            # if patched_method is None:
-            #     generation_error += 1
-            #     self.clear_validation_dir(data_id)
-            #     continue
+            
+            # If the response does not contain the patched method, meaning the patch is not generated
+            if patched_method is None:
+                generation_error += 1
+                write_json_file(
+                    {
+                        "patch": None,
+                        "patched_method_loc": None,
+                        "status": "[ResponseError]",
+                        "error_message": None,
+                        "validation_time": None,
+                    },
+                    validated_patch_file
+                )
+                self.clear_validation_dir(data_id)
+                continue
 
             # Execute the program
             executionResult = self.execute(validation_dir)
@@ -449,7 +474,7 @@ class RegMiner4APR(AbstractBenchmark):
                 
                 return patched_method, (new_start_method_loc, new_end_method_loc)
             
-            # Write the patch to the buggy file
+            # If the response is None, meaning API response is error
             if patch_info['patch'] is None:
                 logger.warning("Cannot generate the patch!")
                 generation_error += 1
@@ -457,7 +482,7 @@ class RegMiner4APR(AbstractBenchmark):
                     {
                         "patch": None,
                         "patched_method_loc": None,
-                        "status": None,
+                        "status": "[ResponseError]",
                         "error_message": None,
                         "validation_time": None,
                         "response": patch_info['response'],
@@ -471,10 +496,26 @@ class RegMiner4APR(AbstractBenchmark):
                 continue
             
             patched_method, patched_method_loc = apply_patch(validation_dir, buggy_relative_path, patch_info['patch'], method_loc)
-            # if patched_method is None:
-            #     generation_error += 1
-            #     self.clear_validation_dir(data_id)
-            #     continue
+            
+            # If the response does not contain the patched method, meaning the patch is not generated
+            if patched_method is None:
+                generation_error += 1
+                write_json_file(
+                    {
+                        "patch": None,
+                        "patched_method_loc": None,
+                        "status": "[ResponseError]",
+                        "error_message": None,
+                        "validation_time": None,
+                        "response": patch_info['response'],
+                        "input_tokens": patch_info['input_tokens'],
+                        "output_tokens": patch_info['output_tokens'],
+                        "total_cost": patch_info['total_cost']
+                    },
+                    validated_patch_file
+                )
+                self.clear_validation_dir(data_id)
+                continue
 
             # Execute the program
             executionResult = self.execute(validation_dir)

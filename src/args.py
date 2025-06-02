@@ -62,3 +62,11 @@ prompt_repair_args(prompt_repair_parser)
 # Conversational repair subparser
 conversational_repair_parser = subparsers.add_parser("conversational-apr", help="Conversational repair")
 conversational_repair_args(conversational_repair_parser)
+
+# Prompt repair with BIC subparser
+prompt_repair_with_bic_parser = subparsers.add_parser("prompt-apr-with-bic", help="Prompt-based repair with BIC")
+prompt_repair_args(prompt_repair_with_bic_parser)
+
+# Conversational repair with BIC subparser
+conversational_repair_with_bic_parser = subparsers.add_parser("conversational-apr-with-bic", help="Conversational repair with BIC")
+conversational_repair_args(conversational_repair_with_bic_parser)
