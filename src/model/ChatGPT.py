@@ -7,8 +7,9 @@ import os
 import re
 
 load_dotenv()
-api_key = os.getenv("LAB_API_KEY")
+# api_key = os.getenv("LAB_API_KEY")
 # api_key = os.getenv("PERSONAL_API_KEY")
+api_key = os.getenv("API_KEY")
 client = OpenAI(api_key=api_key)
 
 class ChatGPT(AbstractRepair):
