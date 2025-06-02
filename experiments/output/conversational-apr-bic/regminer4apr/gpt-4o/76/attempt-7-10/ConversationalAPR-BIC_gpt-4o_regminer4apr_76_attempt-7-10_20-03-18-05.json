@@ -1,0 +1,101 @@
+[
+    {
+        "patch": "private static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().and()\n            .withMinutes().and()\n            .withHours().and()\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().and()\n            .withMonth().withValidRange(1, 12).and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            .withYear().withValidRange(1970, 2099).optional().and()\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}",
+        "patched_method_loc": [
+            259,
+            271
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 1/31 7 ?'. Period 31 not in range (1, 31]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]"
+        ],
+        "validation_time": 21.376497507095337,
+        "response": "The bug in the code is due to the usage of `withStrictRange()` for fields where it is not appropriate. Specifically, the `withStrictRange()` method enforces strict validation on the range of values allowed for a particular cron field. For `DayOfMonth`, `Month`, and `Year`, the ranges are incorrectly set, causing issues with parsing certain cron expressions.\n\nLet's analyze the problematic areas:\n\n1. **DayOfMonth**: The valid range is set from 1 to 32, but it should actually be 1 to 31. The `withStrictRange()` is causing the parser to reject valid expressions that have out-of-order ranges or other flexible constructs like `?`, `L`, `W`, and `LW`.\n\n2. **Month**: The valid range is set from 1 to 13, but it should be 1 to 12. The `withStrictRange()` should not be used here as it is unnecessary.\n\n3. **Year**: The valid range from 1970 to 2099 is correct, but the `withStrictRange()` may unnecessarily restrict some valid expressions.\n\nThe root cause of the failure in the test case is the use of `withStrictRange()`, which limits the flexibility of specifying ranges or using special symbols in cron expressions. This is confirmed by the error message related to an invalid range.\n\nTo fix the bug, we should remove the `withStrictRange()` calls where they are not appropriate and correct the valid ranges for `DayOfMonth` and `Month`.\n\nHere's the corrected function:\n\n```java\nprivate static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().and()\n            .withMinutes().and()\n            .withHours().and()\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().and()\n            .withMonth().withValidRange(1, 12).and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            .withYear().withValidRange(1970, 2099).optional().and()\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}\n```\n\nThis fix removes the `withStrictRange()` where it is not needed and adjusts the valid ranges for `DayOfMonth` and `Month` to their correct values. This should resolve the issue and pass the failing test case.",
+        "input_tokens": 517,
+        "output_tokens": 531,
+        "total_cost": 0.006602500000000001
+    },
+    {
+        "patch": "private static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().withStrictRange().and()\n            .withMinutes().withStrictRange().and()\n            .withHours().withStrictRange().and()\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().withStrictRange().and()\n            .withMonth().withValidRange(1, 12).withStrictRange().and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            .withYear().withValidRange(1970, 2099).withStrictRange().optional().and()\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}",
+        "patched_method_loc": [
+            259,
+            271
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 1/31 7 ?'. Period 31 not in range (1, 31]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.validator.CronValidatorQuartzIntegrationTest#testOverflowRange: java.lang.IllegalArgumentException: : Failed to parse '20-10 0 0 ? * 3'. Invalid range! [20,10]"
+        ],
+        "validation_time": 20.311489582061768,
+        "response": "The errors you're encountering indicate that there are issues with the valid ranges specified for the day of the month and the month fields. Let's analyze this step by step:\n\n1. **Day of Month Range**: The valid range set in the code is `(1, 32)`. However, this range allows the value `32`, which is not a valid day of any month. The correct upper bound should be `31`.\n\n2. **Month Range**: The valid range set in the code is `(1, 13)`. However, this allows the value `13`, which is not a valid month. The correct upper bound should be `12`.\n\n3. **Strict Ranges**: The `withStrictRange()` calls ensure that values are within the specified valid range. Given the errors, it's clear that the ranges need to be corrected.\n\nLet's correct these issues in the function:\n\n```java\nprivate static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().withStrictRange().and()\n            .withMinutes().withStrictRange().and()\n            .withHours().withStrictRange().and()\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().withStrictRange().and()\n            .withMonth().withValidRange(1, 12).withStrictRange().and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            .withYear().withValidRange(1970, 2099).withStrictRange().optional().and()\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}\n```\n\n### Key Changes:\n- Corrected the valid range for **Day of Month** to `(1, 31)`.\n- Corrected the valid range for **Month** to `(1, 12)`.\n\nThis should resolve the errors by ensuring that the specified ranges are correct and inclusive of valid cron expressions.",
+        "input_tokens": 781,
+        "output_tokens": 433,
+        "total_cost": 0.0062825
+    },
+    {
+        "patch": "private static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().withStrictRange().and()\n            .withMinutes().withStrictRange().and()\n            .withHours().withStrictRange().and()\n            // Correcting Day of Month range to (1, 31) and removing strict range\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().and()\n            // Correcting Month range to (1, 12) and removing strict range\n            .withMonth().withValidRange(1, 12).and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            // Removing strict range from Year as optional doesn't need strict range\n            .withYear().withValidRange(1970, 2099).optional().and()\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}",
+        "patched_method_loc": [
+            259,
+            274
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 1/31 7 ?'. Period 31 not in range (1, 31]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.validator.CronValidatorQuartzIntegrationTest#testOverflowRange: java.lang.IllegalArgumentException: : Failed to parse '20-10 0 0 ? * 3'. Invalid range! [20,10]"
+        ],
+        "validation_time": 21.352956771850586,
+        "response": "The errors you're encountering relate to incorrect ranges set for day of the month, month, and possibly other fields in the cron definition. The \"withStrictRange()\" method imposes strict validation, which seems to be causing issues when parsing certain cron expressions. We need to ensure the valid ranges for days and months without the strict constraint to allow more flexibility for certain cron expressions.\n\nLet's address these issues by reviewing the valid ranges and removing strict range constraints where inappropriate:\n\n```java\nprivate static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().withStrictRange().and()\n            .withMinutes().withStrictRange().and()\n            .withHours().withStrictRange().and()\n            // Correcting Day of Month range to (1, 31) and removing strict range\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().and()\n            // Correcting Month range to (1, 12) and removing strict range\n            .withMonth().withValidRange(1, 12).and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            // Removing strict range from Year as optional doesn't need strict range\n            .withYear().withValidRange(1970, 2099).optional().and()\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}\n```\n\n### Explanation\n- **Day of Month:** The valid range should be between 1 and 31. The previous range of 1 to 32 was incorrect. We also removed `withStrictRange()` to allow for cron expressions that may need more flexibility.\n  \n- **Month:** The valid range should be between 1 and 12. The previous range of 1 to 13 was incorrect. Similarly, removed `withStrictRange()` to accommodate expressions like `1/12`.\n\n- **Year:** We removed `withStrictRange()` from the year definition since it's optional and strict validation can prevent valid optional expressions.\n\nThis should resolve the parsing issues for the provided test cases.",
+        "input_tokens": 1096,
+        "output_tokens": 460,
+        "total_cost": 0.00734
+    },
+    {
+        "patch": "private static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().withStrictRange().and()\n            .withMinutes().withStrictRange().and()\n            .withHours().withStrictRange().and()\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().and()\n            .withMonth().withValidRange(1, 12).and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            .withYear().withValidRange(1970, 2099).withStrictRange().optional().and()\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}",
+        "patched_method_loc": [
+            259,
+            271
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 1/31 7 ?'. Period 31 not in range (1, 31]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.validator.CronValidatorQuartzIntegrationTest#testOverflowRange: java.lang.IllegalArgumentException: : Failed to parse '20-10 0 0 ? * 3'. Invalid range! [20,10]"
+        ],
+        "validation_time": 20.11905813217163,
+        "response": "The issue appears to be with the `withStrictRange()` method being applied inappropriately, particularly with the ranges for day of month, month, and year. The incorrect ranges are likely causing the validation errors when parsing certain cron expressions. Let's address the range issues by setting correct valid ranges and removing unnecessary strict range checks:\n\n1. **Day of Month:** The valid range should be 1 to 31, not 1 to 32.\n2. **Month:** The valid range should be 1 to 12, not 1 to 13.\n3. **Year:** We can keep the strict range if it is appropriately defined.\n\nHere is the revised `quartz` function:\n\n```java\nprivate static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().withStrictRange().and()\n            .withMinutes().withStrictRange().and()\n            .withHours().withStrictRange().and()\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().and()\n            .withMonth().withValidRange(1, 12).and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            .withYear().withValidRange(1970, 2099).withStrictRange().optional().and()\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}\n```\n\n### Key Changes:\n- **Day of Month Range:** Changed from `1, 32` to `1, 31`.\n- **Month Range:** Changed from `1, 13` to `1, 12`.\n- Removed the strict range for the day of month as it is not necessary and can cause issues with valid cron expressions that use `/` for period definitions.\n\nThese changes should address the parsing errors related to ranges and ensure that the cron expressions are validated correctly.",
+        "input_tokens": 1411,
+        "output_tokens": 421,
+        "total_cost": 0.0077375000000000005
+    },
+    {
+        "patch": "private static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().withStrictRange().and()\n            .withMinutes().withStrictRange().and()\n            .withHours().withStrictRange().and()\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().and()\n            .withMonth().withValidRange(1, 12).and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            .withYear().withValidRange(1970, 2099).optional().and()  // Removed strict range for year\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}",
+        "patched_method_loc": [
+            259,
+            271
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptFirstMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24/1 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastDayOfMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 1/31 7 ?'. Period 31 not in range (1, 31]",
+            "com.cronutils.utils.descriptor.Issue281Test#shouldAcceptLastMonth: java.lang.IllegalArgumentException: : Failed to parse '0 0 0 24 1/12 ?'. Period 12 not in range (1, 12]",
+            "com.cronutils.validator.CronValidatorQuartzIntegrationTest#testOverflowRange: java.lang.IllegalArgumentException: : Failed to parse '20-10 0 0 ? * 3'. Invalid range! [20,10]"
+        ],
+        "validation_time": 20.767648220062256,
+        "response": "The issue seems to be related to the incorrect range definitions for `dayOfMonth`, `month`, and potentially the strict range enforcement on `year`. Let's address these one by one:\n\n1. **Day of Month**: The valid range should be `1` to `31`, not `32`.\n2. **Month**: The valid range should be `1` to `12`, not `13`.\n3. **Year**: Enforcing strict range might not be necessary or could be incorrectly applied.\n\nLet's correct these issues:\n\n```java\nprivate static CronDefinition quartz() {\n    return CronDefinitionBuilder.defineCron()\n            .withSeconds().withStrictRange().and()\n            .withMinutes().withStrictRange().and()\n            .withHours().withStrictRange().and()\n            .withDayOfMonth().withValidRange(1, 31).supportsL().supportsW().supportsLW().supportsQuestionMark().and()\n            .withMonth().withValidRange(1, 12).and()\n            .withDayOfWeek().withValidRange(1, 7).withMondayDoWValue(2).supportsHash().supportsL().supportsQuestionMark().and()\n            .withYear().withValidRange(1970, 2099).optional().and()  // Removed strict range for year\n            .withCronValidation(CronConstraintsFactory.ensureEitherDayOfWeekOrDayOfMonth())\n            .instance();\n}\n```\n\n### Explanation:\n- **Day of Month**: Changed the valid range to `1-31` to match the actual days in a month.\n- **Month**: Changed the valid range to `1-12` to match the actual months in a year.\n- **Year**: Removed `withStrictRange()` because it might be causing unnecessary constraints. The optional clause should be enough to handle years flexibly within the valid range.\n\nThis should address the issues seen in the test cases.",
+        "input_tokens": 1726,
+        "output_tokens": 395,
+        "total_cost": 0.008265000000000002
+    }
+]

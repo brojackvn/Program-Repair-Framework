@@ -1,0 +1,494 @@
+[
+    {
+        "patch": "public void update(final Sketch sketchIn) { // Only valid for theta Sketches using SerVer = 3\n    // UNION Empty Rule: AND the empty states.\n\n    if (sketchIn == null || sketchIn.isEmpty()) {\n        // null and empty is interpreted as (Theta = 1.0, count = 0, empty = T). Nothing changes\n        return;\n    }\n\n    // sketchIn is valid and not empty\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); // Theta rule\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) { // Only true if Compact. Use early stop\n            // Ordered, thus compact\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); // backdoor update, hash function is bypassed\n                }\n            } else { // sketchIn is on the Java Heap or has array\n                final long[] cacheIn = sketchIn.getCache(); // not a copy!\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); // backdoor update, hash function is bypassed\n                }\n            }\n        } // End ordered, compact\n        else { // either not-ordered compact or Hash Table form. A HT may have dirty values.\n            final long[] cacheIn = sketchIn.getCache(); // if off-heap this will be a copy\n            final int arrLongs = cacheIn.length;\n            for (int i = 0, c = 0; i < arrLongs && c < curCountIn; i++) {\n                final long hashIn = cacheIn[i];\n                if (hashIn <= 0L || hashIn >= unionThetaLong_) {\n                    continue; // rejects dirty values\n                }\n                gadget_.hashUpdate(hashIn); // backdoor update, hash function is bypassed\n                c++; // insures against invalid state inside the incoming sketch\n            }\n        }\n    }\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); // Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            310
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 57.21832871437073
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if (sketchIn == null || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            final int arrLongs = cacheIn.length;\n            for (int i = 0, c = 0; i < arrLongs && c < curCountIn; i++) {\n                final long hashIn = cacheIn[i];\n                if (hashIn <= 0L || hashIn >= unionThetaLong_) {\n                    continue;\n                }\n                gadget_.hashUpdate(hashIn);\n                c++;\n            }\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            308
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 57.50549864768982
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) { //Only valid for theta Sketches using SerVer = 3\n    //UNION Empty Rule: AND the empty states.\n\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        //null and empty is interpreted as (Theta = 1.0, count = 0, empty = T).  Nothing changes\n        return;\n    }\n    //sketchIn is valid and not empty\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); //Theta rule\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty(); // Update unionEmpty_ based on sketchIn.isEmpty()\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) { //Only true if Compact. Use early stop\n            //Ordered, thus compact\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                }\n            } else { //sketchIn is on the Java Heap or has array\n                final long[] cacheIn = sketchIn.getCache(); //not a copy!\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                }\n            }\n        } //End ordered, compact\n        else { //either not-ordered compact or Hash Table form. A HT may have dirty values.\n            final long[] cacheIn = sketchIn.getCache(); //if off-heap this will be a copy\n            final int arrLongs = cacheIn.length;\n            for (int i = 0, c = 0; (i < arrLongs) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue; //rejects dirty values\n                }\n                gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                c++; //insures against invalid state inside the incoming sketch\n            }\n        }\n    }\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); //Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            310
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 56.33487677574158
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if (sketchIn == null || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    if (!sketchIn.isEmpty()) {\n        final int curCountIn = sketchIn.getRetainedEntries(true);\n\n        if (curCountIn > 0) {\n            if (sketchIn.isOrdered()) {\n                if (sketchIn.hasMemory()) {\n                    final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                    final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                    for (int i = 0; i < curCountIn; i++) {\n                        final int offsetBytes = (preambleLongs + i) << 3;\n                        final long hashIn = skMem.getLong(offsetBytes);\n                        if (hashIn >= unionThetaLong_) {\n                            break;\n                        }\n                        gadget_.hashUpdate(hashIn);\n                    }\n                } else {\n                    final long[] cacheIn = sketchIn.getCache();\n                    for (int i = 0; i < curCountIn; i++) {\n                        final long hashIn = cacheIn[i];\n                        if (hashIn >= unionThetaLong_) {\n                            break;\n                        }\n                        gadget_.hashUpdate(hashIn);\n                    }\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0, c = 0; i < cacheIn.length && c < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn > 0 && hashIn < unionThetaLong_) {\n                        gadget_.hashUpdate(hashIn);\n                        c++;\n                    }\n                }\n            }\n        }\n    }\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n}",
+        "patched_method_loc": [
+            255,
+            306
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 51.354933738708496
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n    \n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            for (int i = 0, c = 0; (i < cacheIn.length) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue;\n                }\n                gadget_.hashUpdate(hashIn);\n                c++;\n            }\n        }\n    }\n    \n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            305
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 57.326714515686035
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    if (sketchIn.isEmpty()) {\n        unionEmpty_ = true;\n    }\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0x3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            for (int i = 0, c = 0; (i < cacheIn.length) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn > 0L) && (hashIn < unionThetaLong_)) {\n                    gadget_.hashUpdate(hashIn);\n                    c++;\n                }\n            }\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            308
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 60.026094913482666
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    if (!sketchIn.isEmpty()) {\n        final int curCountIn = sketchIn.getRetainedEntries(true);\n\n        if (curCountIn > 0) {\n            if (sketchIn.isOrdered() && sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            }\n        }\n    }\n\n    // Update gadget theta value before updating union theta value\n    gadget_.updateTheta();\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            297
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[294,12] cannot find symbol\n  symbol:   method updateTheta()"
+        ],
+        "validation_time": 3.0364291667938232
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) { //Only valid for theta Sketches using SerVer = 3\n    //UNION Empty Rule: AND the empty states.\n\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        //null and empty is interpreted as (Theta = 1.0, count = 0, empty = T).  Nothing changes\n        return;\n    }\n    //sketchIn is valid and not empty\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); //Theta rule\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) { //Only true if Compact. Use early stop\n            //Ordered, thus compact\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                }\n            } else { //sketchIn is on the Java Heap or has array\n                final long[] cacheIn = sketchIn.getCache(); //not a copy!\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                }\n            }\n        } //End ordered, compact\n        else { //either not-ordered compact or Hash Table form. A HT may have dirty values.\n            final long[] cacheIn = sketchIn.getCache(); //if off-heap this will be a copy\n            final int arrLongs = cacheIn.length;\n            for (int i = 0, c = 0; (i < arrLongs) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue; //rejects dirty values\n                }\n                gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                c++; //insures against invalid state inside the incoming sketch\n            }\n        }\n    }\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); //Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            309
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 51.27410888671875
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    unionEmpty_ = unionEmpty_ || sketchIn.isEmpty();\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n\n                    gadget_.hashUpdate(hashIn);\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n\n                    gadget_.hashUpdate(hashIn);\n                }\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            for (int i = 0, c = 0; (i < curCountIn) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n\n                if ((hashIn == 0L) || (hashIn >= unionThetaLong_)) {\n                    continue;\n                }\n\n                gadget_.hashUpdate(hashIn);\n                c++;\n            }\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            315
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SingleItemSketchTest#union: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkDirectWrap: java.lang.AssertionError: expected [1.0] but found [4.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8762.515215120235]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [821873.4423240143]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8409.03054535533]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8762.515215120235]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8409.03054535533]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [821873.4423240143]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.PairwiseCornerCasesTest#checkSetOps: java.lang.AssertionError: expected [72.001002473619] but found [157.08108820045345]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkEstMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkExactMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkBuilder: java.lang.AssertionError: expected [2048.0] but found [506.0]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkDirectUnionExample: java.lang.AssertionError: expected [32768.0] but found [16361.0]"
+        ],
+        "validation_time": 59.284924268722534
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    if (!sketchIn.isOrdered() || !sketchIn.hasMemory()) {\n        final long[] cacheIn = sketchIn.getCache();\n        final int curCountIn = sketchIn.getRetainedEntries(true);\n\n        for (int i = 0; i < curCountIn; i++) {\n            final long hashIn = cacheIn[i];\n            if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                continue;\n            }\n            gadget_.hashUpdate(hashIn);\n        }\n    } else {\n        final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n        final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n        final int curCountIn = sketchIn.getRetainedEntries(true);\n\n        for (int i = 0; i < curCountIn; i++) {\n            final int offsetBytes = (preambleLongs + i) << 3;\n            final long hashIn = skMem.getLong(offsetBytes);\n            if (hashIn >= unionThetaLong_) {\n                break;\n            }\n            gadget_.hashUpdate(hashIn);\n        }\n    }\n\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            294
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SingleItemSketchTest#union: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkDirectWrap: java.lang.AssertionError: expected [1.0] but found [4.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8762.515215120235]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [821873.4423240143]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8409.03054535533]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8762.515215120235]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8409.03054535533]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [821873.4423240143]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.PairwiseCornerCasesTest#checkSetOps: java.lang.AssertionError: expected [72.001002473619] but found [157.08108820045345]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkEstMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkExactMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkBuilder: java.lang.AssertionError: expected [2048.0] but found [506.0]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkDirectUnionExample: java.lang.AssertionError: expected [32768.0] but found [16361.0]"
+        ],
+        "validation_time": 57.10162973403931
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if (sketchIn == null || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); //Theta rule\n\n    if (sketchIn.isEmpty()) {\n        unionEmpty_ = true;\n    }\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        final long[] cacheIn = sketchIn.getCache();\n\n        for (int i = 0, c = 0; i < cacheIn.length && c < curCountIn; i++) {\n            final long hashIn = cacheIn[i];\n\n            if (hashIn <= 0 || hashIn >= unionThetaLong_) {\n                continue;\n            }\n\n            gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n            c++; //insures against invalid state inside the incoming sketch\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); //Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            288
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 54.448540925979614
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        // null and empty is interpreted as (Theta = 1.0, count = 0, empty = T). Nothing changes\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); // Theta rule\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0x3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); // backdoor update, hash function is bypassed\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); // backdoor update, hash function is bypassed\n                }\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            for (int i = 0, c = 0; (i < cacheIn.length) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue;\n                }\n                gadget_.hashUpdate(hashIn); // backdoor update, hash function is bypassed\n                c++;\n            }\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); // Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            306
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 57.30702495574951
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if (sketchIn == null || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    if (sketchIn.isOrdered()) {\n        CompactSketch compactSketch = (CompactSketch) sketchIn;\n        if (compactSketch.hasMemory()) {\n            Memory skMem = compactSketch.getMemory();\n            int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0x3F;\n            int curCountIn = compactSketch.getRetainedEntries(true);\n            for (int i = 0; i < curCountIn; i++) {\n                int offsetBytes = (preambleLongs + i) << 3;\n                long hashIn = skMem.getLong(offsetBytes);\n                if (hashIn >= unionThetaLong_) {\n                    break;\n                }\n                gadget_.hashUpdate(hashIn);\n            }\n        } else {\n            long[] cacheIn = compactSketch.getCache();\n            int curCountIn = compactSketch.getRetainedEntries(true);\n            for (int i = 0; i < curCountIn; i++) {\n                long hashIn = cacheIn[i];\n                if (hashIn >= unionThetaLong_) {\n                    break;\n                }\n                gadget_.hashUpdate(hashIn);\n            }\n        }\n    } else {\n        long[] cacheIn = sketchIn.getCache();\n        int curCountIn = sketchIn.getRetainedEntries(true);\n        for (int i = 0, c = 0; i < cacheIn.length && c < curCountIn; i++) {\n            long hashIn = cacheIn[i];\n            if (hashIn <= 0L || hashIn >= unionThetaLong_) {\n                continue;\n            }\n            gadget_.hashUpdate(hashIn);\n            c++;\n        }\n    }\n\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            306
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 58.787617206573486
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            CompactSketch compactSketch = (CompactSketch) sketchIn;\n            long[] cacheIn = compactSketch.getCache();\n            for (int i = 0; i < curCountIn; i++) {\n                long hashIn = cacheIn[i];\n                if (hashIn >= unionThetaLong_) {\n                    break;\n                }\n                gadget_.hashUpdate(hashIn);\n            }\n        } else {\n            long[] cacheIn = sketchIn.getCache();\n            int c = 0;\n            for (long hashIn : cacheIn) {\n                if ((hashIn > 0L) && (hashIn < unionThetaLong_)) {\n                    gadget_.hashUpdate(hashIn);\n                    c++;\n                }\n            }\n        }\n    }\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            291
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 51.15858721733093
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); // Theta rule\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    \n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            for (int i = 0; i < curCountIn; i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue;\n                }\n                gadget_.hashUpdate(hashIn);\n            }\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n    unionEmpty_ = unionEmpty_ && gadget_.isEmpty();\n}",
+        "patched_method_loc": [
+            255,
+            302
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SingleItemSketchTest#union: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkDirectWrap: java.lang.AssertionError: expected [1.0] but found [4.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8762.515215120235]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [821873.4423240143]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8409.03054535533]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8762.515215120235]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8409.03054535533]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [821873.4423240143]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.PairwiseCornerCasesTest#checkSetOps: java.lang.AssertionError: expected [72.001002473619] but found [157.08108820045345]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkEstMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkExactMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkBuilder: java.lang.AssertionError: expected [2048.0] but found [506.0]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkDirectUnionExample: java.lang.AssertionError: expected [32768.0] but found [16361.0]"
+        ],
+        "validation_time": 59.64405107498169
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) { //Only valid for theta Sketches using SerVer = 3\n    //UNION Empty Rule: AND the empty states.\n\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        //null and empty is interpreted as (Theta = 1.0, count = 0, empty = T). Nothing changes\n        return;\n    }\n    //sketchIn is valid and not empty\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); //Theta rule\n    unionEmpty_ = unionEmpty_ || sketchIn.isEmpty();\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) { //Only true if Compact. Use early stop\n            //Ordered, thus compact\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                }\n            } else { //sketchIn is on the Java Heap or has array\n                final long[] cacheIn = sketchIn.getCache(); //not a copy!\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                }\n            }\n        } else { //either not-ordered compact or Hash Table form. A HT may have dirty values.\n            final long[] cacheIn = sketchIn.getCache(); //if off-heap this will be a copy\n            final int arrLongs = cacheIn.length;\n            for (int i = 0, c = 0; (i < arrLongs) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue; //rejects dirty values\n                }\n                gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                c++; //insures against invalid state inside the incoming sketch\n            }\n        }\n    }\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); //Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            309
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 57.71888446807861
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if (sketchIn == null || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    if (!sketchIn.isOrdered()) {\n        unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n    }\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            for (int i = 0, c = 0; i < cacheIn.length && c < curCountIn; i++) {\n                final long hashIn = cacheIn[i];\n                if (hashIn <= 0L || hashIn >= unionThetaLong_) {\n                    continue;\n                }\n                gadget_.hashUpdate(hashIn);\n                c++;\n            }\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            309
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 61.7208571434021
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    if (!sketchIn.isEmpty()) {\n        unionEmpty_ = false;\n    }\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            for (int i = 0, c = 0; (i < cacheIn.length) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue;\n                }\n                gadget_.hashUpdate(hashIn);\n                c++;\n            }\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            308
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 57.736451864242554
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) { //Only valid for theta Sketches using SerVer = 3\n    //UNION Empty Rule: AND the empty states.\n\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        //null and empty is interpreted as (Theta = 1.0, count = 0, empty = T).  Nothing changes\n        return;\n    }\n    //sketchIn is valid and not empty\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); //Theta rule\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) { //Only true if Compact. Use early stop\n            //Ordered, thus compact\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                }\n            } else { //sketchIn is on the Java Heap or has array\n                final long[] cacheIn = sketchIn.getCache(); //not a copy!\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                }\n            }\n        } //End ordered, compact\n        else { //either not-ordered compact or Hash Table form. A HT may have dirty values.\n            final long[] cacheIn = sketchIn.getCache(); //if off-heap this will be a copy\n            final int arrLongs = cacheIn.length;\n            for (int i = 0, c = 0; (i < arrLongs) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue; //rejects dirty values\n                }\n                gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                c++; //insures against invalid state inside the incoming sketch\n            }\n        }\n    }\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); //Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            309
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 60.30744409561157
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) { \n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n    \n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); //Theta rule\n\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        final long[] cacheIn = sketchIn.getCache();\n\n        for (int i = 0; i < curCountIn; i++) {\n            final long hashIn = cacheIn[i];\n\n            if (hashIn >= unionThetaLong_) {\n                break; // \"early stop\"\n            }\n\n            gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); //Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            285
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SingleItemSketchTest#union: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkDirectWrap: java.lang.AssertionError: expected [1.0] but found [4.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [2346.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [753780.4271183765]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [2340.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [4412.258867813376]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [4400.974318279327]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [753780.4271183765]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.PairwiseCornerCasesTest#checkSetOps: java.lang.AssertionError: expected [72.001002473619] but found [157.08108820045345]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkEstMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkExactMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkBuilder: java.lang.AssertionError: expected [2048.0] but found [506.0]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkDirectUnionExample: java.lang.AssertionError: expected [32768.0] but found [16361.0]"
+        ],
+        "validation_time": 57.4639892578125
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong());\n\n    if (!sketchIn.isEmpty()) {\n        unionEmpty_ = false; // Reset to false if sketchIn is not empty\n    }\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered() && sketchIn.hasMemory()) {\n            final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n            final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n            for (int i = 0; i < curCountIn; i++) {\n                final int offsetBytes = (preambleLongs + i) << 3;\n                final long hashIn = skMem.getLong(offsetBytes);\n                if (hashIn >= unionThetaLong_) {\n                    break;\n                }\n                gadget_.hashUpdate(hashIn);\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            for (int i = 0; i < curCountIn; i++) {\n                final long hashIn = cacheIn[i];\n                if (hashIn >= unionThetaLong_) {\n                    break;\n                }\n                gadget_.hashUpdate(hashIn);\n            }\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            297
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SingleItemSketchTest#union: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkDirectWrap: java.lang.AssertionError: expected [1.0] but found [4.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [2346.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [753780.4271183765]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [2340.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [4412.258867813376]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [4400.974318279327]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [753780.4271183765]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.PairwiseCornerCasesTest#checkSetOps: java.lang.AssertionError: expected [72.001002473619] but found [157.08108820045345]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkEstMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkExactMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkBuilder: java.lang.AssertionError: expected [2048.0] but found [506.0]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkDirectUnionExample: java.lang.AssertionError: expected [32768.0] but found [16361.0]"
+        ],
+        "validation_time": 54.5098876953125
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) { // Only valid for theta Sketches using SerVer = 3\n    // UNION Empty Rule: AND the empty states.\n\n    if (sketchIn == null || sketchIn.isEmpty()) {\n        // null and empty is interpreted as (Theta = 1.0, count = 0, empty = T). Nothing changes\n        return;\n    }\n\n    // sketchIn is valid and not empty\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); // Theta rule\n    unionEmpty_ = unionEmpty_ && sketchIn.isEmpty();\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) { // Only true if Compact. Use early stop\n            // Ordered, thus compact\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); // backdoor update, hash function is bypassed\n                }\n            } else { // sketchIn is on the Java Heap or has array\n                final long[] cacheIn = sketchIn.getCache(); // not a copy!\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    gadget_.hashUpdate(hashIn); // backdoor update, hash function is bypassed\n                }\n            }\n        } // End ordered, compact\n        else { // either not-ordered compact or Hash Table form. A HT may have dirty values.\n            final long[] cacheIn = sketchIn.getCache(); // if off-heap this will be a copy\n            final int arrLongs = cacheIn.length;\n            for (int i = 0, c = 0; (i < arrLongs) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue; // rejects dirty values\n                }\n                gadget_.hashUpdate(hashIn); // backdoor update, hash function is bypassed\n                c++; // insures against invalid state inside the incoming sketch\n            }\n        }\n    }\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); // Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            311
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 51.423065423965454
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) { \n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    long sketchThetaLong = sketchIn.getThetaLong();\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchThetaLong);\n\n    boolean isSketchEmpty = sketchIn.isEmpty();\n    unionEmpty_ = unionEmpty_ && isSketchEmpty;\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) {\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0x3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            } else {\n                final long[] cacheIn = sketchIn.getCache();\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break;\n                    }\n                    gadget_.hashUpdate(hashIn);\n                }\n            }\n        } else {\n            final long[] cacheIn = sketchIn.getCache();\n            for (int i = 0, c = 0; (i < cacheIn.length) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue;\n                }\n                gadget_.hashUpdate(hashIn);\n                c++;\n            }\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong());\n}",
+        "patched_method_loc": [
+            255,
+            309
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]"
+        ],
+        "validation_time": 57.54169297218323
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) {\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        return;\n    }\n\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = Math.min(unionThetaLong_, sketchIn.getThetaLong()); // Theta rule\n\n    if (sketchIn.isEmpty()) {\n        unionEmpty_ = true;\n    }\n\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n\n    if (curCountIn > 0) {\n        final long[] cacheIn = sketchIn.getCache();\n\n        for (int i = 0; i < curCountIn; i++) {\n            final long hashIn = cacheIn[i];\n\n            if (hashIn >= unionThetaLong_ || hashIn <= 0L) {\n                continue;\n            }\n\n            gadget_.hashUpdate(hashIn);\n        }\n    }\n\n    unionThetaLong_ = Math.min(unionThetaLong_, gadget_.getThetaLong()); // Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            287
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkForDruidBug: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SingleItemSketchTest#union: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkDirectWrap: java.lang.AssertionError: expected [1.0] but found [4.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8762.515215120235]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [821873.4423240143]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8409.03054535533]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.DirectUnionTest#checkWrapExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkEstUnionNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8762.515215120235]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionNoOverlap: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkExactUnionWithOverlap: java.lang.AssertionError: expected [512.0] but found [257.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlap: java.lang.AssertionError: expected [16384.0] but found [8409.03054535533]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapOrderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyEstNoOverlapUnorderedMemIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkHeapifyExact: java.lang.AssertionError: expected [512.0] but found [117.0]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkMultiUnion: java.lang.AssertionError: expected [1080391.0] but found [821873.4423240143]",
+            "com.yahoo.sketches.theta.HeapUnionTest#checkWrapEstNoOverlapOrderedDirectIn: java.lang.AssertionError: expected [16384.0] but found [12514.381903973752]",
+            "com.yahoo.sketches.theta.PairwiseCornerCasesTest#checkSetOps: java.lang.AssertionError: expected [72.001002473619] but found [157.08108820045345]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkEstMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.JaccardSimilarityTest#checkExactMode: java.lang.AssertionError: expected [true] but found [false]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkBuilder: java.lang.AssertionError: expected [2048.0] but found [506.0]",
+            "com.yahoo.sketches.theta.SetOperationTest#checkDirectUnionExample: java.lang.AssertionError: expected [32768.0] but found [16361.0]"
+        ],
+        "validation_time": 57.40432405471802
+    },
+    {
+        "patch": "public void update(final Sketch sketchIn) { //Only valid for theta Sketches using SerVer = 3\n    //UNION Empty Rule: AND the empty states.\n\n    if ((sketchIn == null) || sketchIn.isEmpty()) {\n        //null and empty is interpreted as (Theta = 1.0, count = 0, empty = T).  Nothing changes\n        return;\n    }\n    //sketchIn is valid and not empty\n    Util.checkSeedHashes(seedHash_, sketchIn.getSeedHash());\n    Sketch.checkSketchAndMemoryFlags(sketchIn);\n\n    unionThetaLong_ = max(unionThetaLong_, sketchIn.getThetaLong()); //Theta rule\n    unionEmpty_ = unionEmpty_ && !sketchIn.isEmpty(); // Update only if sketchIn is not empty\n    final int curCountIn = sketchIn.getRetainedEntries(true);\n    if (curCountIn > 0) {\n        if (sketchIn.isOrdered()) { //Only true if Compact. Use early stop\n            //Ordered, thus compact\n            if (sketchIn.hasMemory()) {\n                final Memory skMem = ((CompactSketch) sketchIn).getMemory();\n                final int preambleLongs = skMem.getByte(PREAMBLE_LONGS_BYTE) & 0X3F;\n                for (int i = 0; i < curCountIn; i++) {\n                    final int offsetBytes = (preambleLongs + i) << 3;\n                    final long hashIn = skMem.getLong(offsetBytes);\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    if (hashIn > 0L) {\n                        gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                    }\n                }\n            } else { //sketchIn is on the Java Heap or has array\n                final long[] cacheIn = sketchIn.getCache(); //not a copy!\n                for (int i = 0; i < curCountIn; i++) {\n                    final long hashIn = cacheIn[i];\n                    if (hashIn >= unionThetaLong_) {\n                        break; // \"early stop\"\n                    }\n                    if (hashIn > 0L) {\n                        gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                    }\n                }\n            }\n        } //End ordered, compact\n        else { //either not-ordered compact or Hash Table form. A HT may have dirty values.\n            final long[] cacheIn = sketchIn.getCache(); //if off-heap this will be a copy\n            final int arrLongs = cacheIn.length;\n            for (int i = 0, c = 0; (i < arrLongs) && (c < curCountIn); i++) {\n                final long hashIn = cacheIn[i];\n                if ((hashIn <= 0L) || (hashIn >= unionThetaLong_)) {\n                    continue; //rejects dirty values\n                }\n                gadget_.hashUpdate(hashIn); //backdoor update, hash function is bypassed\n                c++; //insures against invalid state inside the incoming sketch\n            }\n        }\n    }\n    unionThetaLong_ = max(unionThetaLong_, gadget_.getThetaLong()); //Theta rule with gadget\n}",
+        "patched_method_loc": [
+            255,
+            313
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[266,23] cannot find symbol\n  symbol:   method max(long,long)",
+            "[311,23] cannot find symbol\n  symbol:   method max(long,long)"
+        ],
+        "validation_time": 3.085355281829834
+    }
+]

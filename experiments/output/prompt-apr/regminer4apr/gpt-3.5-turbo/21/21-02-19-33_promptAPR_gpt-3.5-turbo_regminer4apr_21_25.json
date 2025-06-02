@@ -1,0 +1,22 @@
+{
+    "0": {
+        "patch": "public SQLExpr orRest(SQLExpr expr) {\n    for (;;) {\n        if (lexer.token == Token.OR) {\n            lexer.nextToken();\n            SQLExpr rightExp = and();\n\n            if (lexer.token == Token.OR && lexer.isEnabled(SQLParserFeature.EnableSQLBinaryOpExprGroup)) {\n                SQLBinaryOpExprGroup group = new SQLBinaryOpExprGroup(SQLBinaryOperator.BooleanOr, dbType);\n                group.add(expr);\n                group.add(rightExp);\n\n                if (lexer.isKeepComments() && lexer.hasComment()) {\n                    rightExp.addAfterComment(lexer.readAndResetComments());\n                }\n\n                for (;;) {\n                    lexer.nextToken();\n                    SQLExpr more = relational();\n                    group.add(more);\n                    if (lexer.token == Token.OR) {\n                        if (lexer.isKeepComments() && lexer.hasComment()) {\n                            more.addAfterComment(lexer.readAndResetComments());\n                        }\n                        continue;\n                    }\n                    break;\n                }\n\n                expr = group;\n            } else {\n                expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.BooleanOr, rightExp, dbType);\n            }\n        } else if (lexer.token == Token.BARBAR && JdbcConstants.MYSQL.equals(dbType)) {\n            lexer.nextToken();\n            SQLExpr rightExp = and();\n            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.BooleanOr, rightExp, dbType);\n        } else if (lexer.token == Token.XOR) {\n            lexer.nextToken();\n            SQLExpr rightExp = and();\n            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.BooleanXor, rightExp, dbType);\n        } else {\n            break;\n        }\n    }\n\n    return expr;\n}",
+        "patched_method_loc": [
+            1959,
+            2006
+        ],
+        "status": "[FE]",
+        "error_message": [],
+        "validation_time": 138.65211129188538
+    },
+    "1": {
+        "patch": "public SQLExpr orRest(SQLExpr expr) {\n    for (;;) {\n        if (lexer.token == Token.OR) {\n            lexer.nextToken();\n            SQLExpr rightExp = and();\n\n            if (lexer.token == Token.OR && lexer.isEnabled(SQLParserFeature.EnableSQLBinaryOpExprGroup)) {\n                SQLBinaryOpExprGroup group = new SQLBinaryOpExprGroup(SQLBinaryOperator.BooleanOr, dbType);\n                group.add(expr);\n                group.add(rightExp);\n\n                while (lexer.token == Token.OR) {\n                    lexer.nextToken();\n                    SQLExpr more = and();\n                    group.add(more);\n                }\n\n                if (lexer.isKeepComments() && lexer.hasComment()) {\n                    group.addAfterComment(lexer.readAndResetComments());\n                }\n\n                expr = group;\n            } else {\n                expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.BooleanOr, rightExp, dbType);\n            }\n        } else if (lexer.token == Token.BARBAR && JdbcConstants.MYSQL.equals(dbType)) {\n            lexer.nextToken();\n            SQLExpr rightExp = and();\n            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.BooleanOr, rightExp, dbType);\n        } else if (lexer.token == Token.XOR) {\n            lexer.nextToken();\n            SQLExpr rightExp = and();\n            expr = new SQLBinaryOpExpr(expr, SQLBinaryOperator.BooleanXor, rightExp, dbType);\n        } else {\n            break;\n        }\n    }\n\n    return expr;\n}",
+        "patched_method_loc": [
+            1959,
+            1999
+        ],
+        "status": "[Plausible]",
+        "error_message": null,
+        "validation_time": 138.9659345149994
+    }
+}

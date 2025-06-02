@@ -1,0 +1,257 @@
+[
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    // Calculate the number of buckets based on the size of messages\n    int numMsgs = Iterables.size(msgs);\n    int numBuckets = Math.max(1, (int) Math.ceil(Math.log(numMsgs) / Math.log(2)));\n    this.bucketMask = (1 << numBuckets) - 1;\n\n    // Sort the messages by ID\n    List<SoyMsg> sortedMsgs = msgs.stream()\n            .sorted(Comparator.comparingLong(SoyMsg::getId))\n            .collect(Collectors.toList());\n\n    // Initialize bucket boundaries\n    bucketBoundaries = new int[numBuckets + 1];\n    int bucketSize = numMsgs / numBuckets;\n    for (int i = 0; i < numBuckets; i++) {\n        bucketBoundaries[i] = i * bucketSize;\n    }\n    bucketBoundaries[numBuckets] = numMsgs;\n\n    // Initialize arrays for IDs, parts, and part ranges\n    ids = new long[numMsgs];\n    List<SoyMsgPart> partsList = new ArrayList<>();\n    partRanges = new int[numMsgs + 1];\n\n    long priorId = -1L;\n    int runningPartCount = 0;\n\n    // Process each sorted message\n    for (int i = 0; i < numMsgs; i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        ImmutableList<SoyMsgPart> parts = msg.getParts();\n\n        if (msg.getId() == priorId) {\n            throw new IllegalArgumentException(\"Duplicate messages are not permitted in the render-only impl.\");\n        }\n\n        if (MsgPartUtils.hasPlrselPart(parts) != msg.isPlrselMsg()) {\n            throw new IllegalArgumentException(\"Message's plural/select status is inconsistent.\");\n        }\n\n        priorId = msg.getId();\n        ids[i] = msg.getId();\n        partsList.addAll(parts);\n        runningPartCount += parts.size();\n        partRanges[i + 1] = runningPartCount;\n    }\n\n    values = ImmutableList.copyOf(partsList);\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[148,5] cannot find symbol\n  symbol:   class List",
+            "[150,22] cannot find symbol\n  symbol:   variable Collectors",
+            "[148,35] cannot find symbol\n  symbol:   method stream()",
+            "[162,5] cannot find symbol\n  symbol:   class List",
+            "[162,38] cannot find symbol\n  symbol:   class ArrayList"
+        ],
+        "validation_time": 6.877154350280762
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    // Sort the messages by ID.\n    List<SoyMsg> sortedMsgs = msgs.stream()\n            .sorted(Comparator.comparingLong(SoyMsg::getId))\n            .collect(Collectors.toList());\n\n    // Initialize variables to keep track of unique message IDs and parts.\n    Set<Long> uniqueIds = new HashSet<>();\n    List<SoyMsgPart> allParts = new ArrayList<>();\n    List<Integer> partRangesList = new ArrayList<>();\n    partRangesList.add(0); // The first range always starts at the beginning of the list.\n\n    // Process the sorted messages.\n    for (SoyMsg msg : sortedMsgs) {\n        long id = msg.getId();\n\n        if (uniqueIds.contains(id)) {\n            throw new IllegalArgumentException(\"Duplicate messages are not permitted in the render-only impl.\");\n        }\n\n        uniqueIds.add(id);\n        List<SoyMsgPart> parts = msg.getParts();\n\n        if (MsgPartUtils.hasPlrselPart(parts) != msg.isPlrselMsg()) {\n            throw new IllegalArgumentException(\"Message's plural/select status is inconsistent -- internal compiler bug.\");\n        }\n\n        allParts.addAll(parts);\n        partRangesList.add(allParts.size()); // End of current message's parts.\n    }\n\n    // Convert lists to arrays for better memory efficiency.\n    ids = uniqueIds.stream().mapToLong(Long::longValue).toArray();\n    values = ImmutableList.copyOf(allParts);\n    \n    // Convert partRangesList to int array.\n    partRanges = partRangesList.stream().mapToInt(Integer::intValue).toArray();\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[143,5] cannot find symbol\n  symbol:   class List",
+            "[145,22] cannot find symbol\n  symbol:   variable Collectors",
+            "[143,35] cannot find symbol\n  symbol:   method stream()",
+            "[148,5] cannot find symbol\n  symbol:   class Set",
+            "[148,31] cannot find symbol\n  symbol:   class HashSet",
+            "[149,5] cannot find symbol\n  symbol:   class List",
+            "[149,37] cannot find symbol\n  symbol:   class ArrayList",
+            "[150,5] cannot find symbol\n  symbol:   class List",
+            "[150,40] cannot find symbol\n  symbol:   class ArrayList",
+            "[162,9] cannot find symbol\n  symbol:   class List",
+            "[173,40] invalid method reference\n  non-static method longValue() cannot be referenced from a static context",
+            "[177,51] invalid method reference\n  non-static method intValue() cannot be referenced from a static context"
+        ],
+        "validation_time": 6.937756299972534
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    int maskHigh = Integer.highestOneBit(Iterables.size(msgs));\n    this.bucketMask = (maskHigh | (maskHigh - 1)) >>> BUCKET_SHIFT;\n    int numBuckets = this.bucketMask + 1;\n\n    Comparator<SoyMsg> bucketComparator =\n        Comparator.comparingInt((SoyMsg m) -> bucketOf(m.getId())).thenComparingLong(SoyMsg::getId);\n    ImmutableList<SoyMsg> sortedMsgs = ImmutableList.sortedCopyOf(bucketComparator, msgs);\n\n    bucketBoundaries = new int[numBuckets + 1];\n    for (int bucket = 0, idx = 0; bucket < numBuckets; bucket++) {\n        bucketBoundaries[bucket] = idx;\n        while (idx < sortedMsgs.size() && bucketOf(sortedMsgs.get(idx).getId()) == bucket) {\n            idx++;\n        }\n    }\n    bucketBoundaries[numBuckets] = sortedMsgs.size();\n\n    ids = new long[sortedMsgs.size()];\n    partRanges = new int[sortedMsgs.size() + 1];\n    partRanges[0] = 0;\n    long priorId = -1L;\n    int runningPartCount = 0;\n    ImmutableList.Builder<ImmutableList<SoyMsgPart>> partsBuilder = ImmutableList.builder();\n    for (int i = 0; i < sortedMsgs.size(); i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        ImmutableList<SoyMsgPart> parts = msg.getParts();\n\n        checkArgument(\n            msg.getId() != priorId, \"Duplicate messages are not permitted in the render-only impl.\");\n        checkArgument(\n            MsgPartUtils.hasPlrselPart(parts) == msg.isPlrselMsg(),\n            \"Message's plural/select status is inconsistent -- internal compiler bug.\");\n\n        priorId = msg.getId();\n        ids[i] = msg.getId();\n        partsBuilder.add(parts);\n        runningPartCount += parts.size();\n        partRanges[i + 1] = runningPartCount;\n    }\n\n    values = partsBuilder.build();\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[183,32] incompatible types: com.google.common.collect.ImmutableList<com.google.common.collect.ImmutableList<com.google.template.soy.msgs.restricted.SoyMsgPart>> cannot be converted to com.google.common.collect.ImmutableList<com.google.template.soy.msgs.restricted.SoyMsgPart>"
+        ],
+        "validation_time": 6.8407511711120605
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    // This creates the mask. Basically, take the high-bit and fill in the bits below it.\n    int maskHigh = Integer.highestOneBit(Iterables.size(msgs));\n    this.bucketMask = (maskHigh | (maskHigh - 1)) >>> BUCKET_SHIFT;\n    int numBuckets = this.bucketMask + 1;\n\n    // Sorts by bucket (low bits within the mask) and breaks ties with the full ID.\n    Comparator<SoyMsg> bucketComparator =\n        Comparator.comparingInt((SoyMsg m) -> bucketOf(m.getId())).thenComparingLong(SoyMsg::getId);\n    ImmutableList<SoyMsg> sortedMsgs = ImmutableList.sortedCopyOf(bucketComparator, msgs);\n\n    // Scan the sorted list to discover bucket boundaries and place them into the boundaries array.\n    bucketBoundaries = new int[numBuckets + 1];\n    int idx = 0;\n    for (int bucket = 0; bucket < numBuckets; bucket++) {\n        bucketBoundaries[bucket] = idx;\n        while (idx < sortedMsgs.size() && bucketOf(sortedMsgs.get(idx).getId()) == bucket) {\n            idx++;\n        }\n    }\n    bucketBoundaries[numBuckets] = sortedMsgs.size();\n\n    ids = new long[sortedMsgs.size()];\n    ImmutableList.Builder<SoyMsgPart> partsBuilder = ImmutableList.builder();\n    partRanges = new int[sortedMsgs.size() + 1];\n    partRanges[0] = 0; // The first range always starts at the beginning of the list.\n    long priorId = -1L;\n    int runningPartCount = 0;\n    for (int i = 0, c = sortedMsgs.size(); i < c; i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        ImmutableList<SoyMsgPart> parts = msg.getParts();\n\n        checkArgument(\n            msg.getId() != priorId, \"Duplicate messages are not permitted in the render-only impl.\");\n        checkArgument(\n            MsgPartUtils.hasPlrselPart(parts) == msg.isPlrselMsg(),\n            \"Message's plural/select status is inconsistent -- internal compiler bug.\");\n\n        priorId = msg.getId();\n        ids[i] = msg.getId();\n        partsBuilder.addAll(parts);\n        runningPartCount += parts.size();\n        partRanges[i + 1] = runningPartCount; // runningPartCount is the end of the range, hence +1\n    }\n\n    // This will build the collections in the same order as the sorted map.\n    values = partsBuilder.build();\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.google.template.soy.msgs.restricted.RenderOnlySoyMsgBundleImplTest#testEmptyBundlesDontOverAllocate: java.lang.OutOfMemoryError: : Java heap space"
+        ],
+        "validation_time": 72.8335862159729
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    int numMsgs = Iterables.size(msgs);\n\n    // This creates the mask. Basically, take the high-bit and fill in the bits below it.\n    int maskHigh = Integer.highestOneBit(numMsgs);\n    this.bucketMask = (maskHigh | (maskHigh - 1)) >>> BUCKET_SHIFT;\n    int numBuckets = this.bucketMask + 1;\n\n    // Sorts by bucket (low bits within the mask) and breaks ties with the full ID.\n    Comparator<SoyMsg> bucketComparator =\n        Comparator.comparingInt((SoyMsg m) -> bucketOf(m.getId())).thenComparingLong(SoyMsg::getId);\n    ImmutableList<SoyMsg> sortedMsgs = ImmutableList.sortedCopyOf(bucketComparator, msgs);\n\n    // Scan the sorted list to discover bucket boundaries and place them into the boundaries array.\n    bucketBoundaries = new int[numBuckets + 1];\n    int bucketIndex = 0;\n    for (int i = 0; i < numMsgs; i++) {\n        int currentBucket = bucketOf(sortedMsgs.get(i).getId());\n        if (currentBucket > bucketIndex) {\n            bucketBoundaries[bucketIndex] = i;\n            bucketIndex = currentBucket;\n        }\n    }\n    bucketBoundaries[numBuckets] = numMsgs;\n\n    ids = new long[numMsgs];\n    ImmutableList.Builder<SoyMsgPart> partsBuilder = ImmutableList.builder();\n    partRanges = new int[numMsgs + 1];\n    partRanges[0] = 0; // The first range always starts at the beginning of the list.\n    long priorId = -1L;\n    int runningPartCount = 0;\n    for (int i = 0; i < numMsgs; i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        ImmutableList<SoyMsgPart> parts = msg.getParts();\n\n        checkArgument(\n            msg.getId() != priorId, \"Duplicate messages are not permitted in the render-only impl.\");\n        checkArgument(\n            MsgPartUtils.hasPlrselPart(parts) == msg.isPlrselMsg(),\n            \"Message's plural/select status is inconsistent -- internal compiler bug.\");\n\n        priorId = msg.getId();\n        ids[i] = msg.getId();\n        partsBuilder.addAll(parts);\n        runningPartCount += parts.size();\n        partRanges[i + 1] = runningPartCount; // runningPartCount is the end of range, hence +1\n    }\n\n    // This will build the collections in the same order as the sorted map.\n    values = partsBuilder.build();\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.google.template.soy.msgs.restricted.RenderOnlySoyMsgBundleImplTest#testEmptyBundlesDontOverAllocate: java.lang.OutOfMemoryError: : Java heap space"
+        ],
+        "validation_time": 67.78865242004395
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    // This creates the mask. Basically, take the high-bit and fill in the bits below it.\n    int maskHigh = Integer.highestOneBit(Iterables.size(msgs));\n    this.bucketMask = (maskHigh | (maskHigh - 1)) >>> BUCKET_SHIFT;\n    int numBuckets = this.bucketMask + 1;\n\n    // Sorts by bucket (low bits within the mask) and breaks ties with the full ID.\n    Comparator<SoyMsg> bucketComparator =\n            Comparator.comparingInt((SoyMsg m) -> bucketOf(m.getId())).thenComparingLong(SoyMsg::getId);\n    ImmutableList<SoyMsg> sortedMsgs = ImmutableList.sortedCopyOf(bucketComparator, msgs);\n\n    // Scan the sorted list to discover bucket boundaries and place them into the boundaries array.\n    bucketBoundaries = new int[numBuckets + 1];\n    for (int bucket = 0, idx = 0; bucket < numBuckets; bucket++) {\n        bucketBoundaries[bucket] = idx;\n        for (; (idx < sortedMsgs.size()) && (bucketOf(sortedMsgs.get(idx).getId()) == bucket); idx++) {\n        }\n    }\n    bucketBoundaries[numBuckets] = sortedMsgs.size();\n\n    ids = new long[sortedMsgs.size()];\n    partRanges = new int[sortedMsgs.size() + 1];\n    partRanges[0] = 0; // The first range always starts at the beginning of the list.\n    long priorId = sortedMsgs.isEmpty() ? -1L : sortedMsgs.get(0).getId() - 1L;\n    int runningPartCount = 0;\n\n    for (int i = 0, c = sortedMsgs.size(); i < c; i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        ImmutableList<SoyMsgPart> parts = msg.getParts();\n\n        checkArgument(\n                msg.getId() != priorId, \"Duplicate messages are not permitted in the render-only impl.\");\n        checkArgument(\n                MsgPartUtils.hasPlrselPart(parts) == msg.isPlrselMsg(),\n                \"Message's plural/select status is inconsistent -- internal compiler bug.\");\n\n        priorId = msg.getId();\n        ids[i] = msg.getId();\n        runningPartCount += parts.size();\n        partRanges[i + 1] = runningPartCount; // runningPartCount is the end of range, hence +1\n    }\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[182,1] variable values might not have been initialized"
+        ],
+        "validation_time": 7.018352031707764
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    int maskHigh = Integer.highestOneBit(Iterables.size(msgs));\n    this.bucketMask = (maskHigh | (maskHigh - 1)) >>> BUCKET_SHIFT;\n    int numBuckets = this.bucketMask + 1;\n\n    Comparator<SoyMsg> bucketComparator =\n        Comparator.comparingInt((SoyMsg m) -> bucketOf(m.getId())).thenComparingLong(SoyMsg::getId);\n    ImmutableList<SoyMsg> sortedMsgs = ImmutableList.sortedCopyOf(bucketComparator, msgs);\n\n    bucketBoundaries = new int[numBuckets + 1];\n    int idx = 0;\n    for (int bucket = 0; bucket < numBuckets; bucket++) {\n        bucketBoundaries[bucket] = idx;\n        while (idx < sortedMsgs.size() && bucketOf(sortedMsgs.get(idx).getId()) == bucket) {\n            idx++;\n        }\n    }\n    bucketBoundaries[numBuckets] = sortedMsgs.size();\n\n    List<Long> idsList = new ArrayList<>();\n    List<SoyMsgPart> partsList = new ArrayList<>();\n    partRanges = new int[sortedMsgs.size() + 1];\n    partRanges[0] = 0;\n    long priorId = -1L;\n    int runningPartCount = 0;\n    \n    for (int i = 0, c = sortedMsgs.size(); i < c; i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        List<SoyMsgPart> parts = msg.getParts();\n\n        if (msg.getId() == priorId) {\n            throw new IllegalArgumentException(\"Duplicate messages are not permitted in the render-only impl.\");\n        }\n        if (MsgPartUtils.hasPlrselPart(parts) != msg.isPlrselMsg()) {\n            throw new IllegalArgumentException(\"Message's plural/select status is inconsistent -- internal compiler bug.\");\n        }\n\n        priorId = msg.getId();\n        idsList.add(msg.getId());\n        partsList.addAll(parts);\n        runningPartCount += parts.size();\n        partRanges[i + 1] = runningPartCount;\n    }\n\n    ids = idsList.stream().mapToLong(Long::valueOf).toArray();\n    values = ImmutableList.copyOf(partsList);\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[160,5] cannot find symbol\n  symbol:   class List",
+            "[160,30] cannot find symbol\n  symbol:   class ArrayList",
+            "[161,5] cannot find symbol\n  symbol:   class List",
+            "[161,38] cannot find symbol\n  symbol:   class ArrayList",
+            "[169,9] cannot find symbol\n  symbol:   class List"
+        ],
+        "validation_time": 6.931576490402222
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    int maskHigh = Integer.highestOneBit(Iterables.size(msgs));\n    this.bucketMask = (maskHigh | (maskHigh - 1)) >>> BUCKET_SHIFT;\n    int numBuckets = this.bucketMask + 1;\n\n    Comparator<SoyMsg> bucketComparator =\n            Comparator.comparingInt((SoyMsg m) -> bucketOf(m.getId())).thenComparingLong(SoyMsg::getId);\n    ImmutableList<SoyMsg> sortedMsgs = ImmutableList.sortedCopyOf(bucketComparator, msgs);\n\n    bucketBoundaries = new int[numBuckets + 1];\n    for (int bucket = 0, idx = 0; bucket < numBuckets; bucket++) {\n        bucketBoundaries[bucket] = idx;\n        for (; (idx < sortedMsgs.size()) && (bucketOf(sortedMsgs.get(idx).getId()) == bucket); idx++) {\n        }\n    }\n    bucketBoundaries[numBuckets] = sortedMsgs.size();\n\n    ids = new long[sortedMsgs.size()];\n    ImmutableList.Builder<SoyMsgPart> partsBuilder = ImmutableList.builder();\n    partRanges = new int[sortedMsgs.size() + 1];\n    partRanges[0] = 0;\n\n    long priorId = -1L;\n    int runningPartCount = 0;\n    for (int i = 0, c = sortedMsgs.size(); i < c; i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        ImmutableList<SoyMsgPart> parts = msg.getParts();\n\n        if (msg.getId() != priorId) {\n            checkArgument(\n                    MsgPartUtils.hasPlrselPart(parts) == msg.isPlrselMsg(),\n                    \"Message's plural/select status is inconsistent -- internal compiler bug.\");\n\n            priorId = msg.getId();\n            ids[i] = msg.getId();\n            partsBuilder.addAll(parts);\n            runningPartCount += parts.size();\n            partRanges[i + 1] = runningPartCount;\n        }\n    }\n\n    values = partsBuilder.build();\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.google.template.soy.msgs.restricted.RenderOnlySoyMsgBundleImplTest#testEmptyBundlesDontOverAllocate: java.lang.OutOfMemoryError: : Java heap space"
+        ],
+        "validation_time": 72.43753480911255
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    // This creates the mask. Basically, take the high-bit and fill in the bits below it.\n    int maskHigh = Integer.highestOneBit(Iterables.size(msgs));\n    this.bucketMask = (maskHigh | (maskHigh - 1)) >>> BUCKET_SHIFT;\n    int numBuckets = this.bucketMask + 1;\n\n    // Sorts by bucket (low bits within the mask) and breaks ties with the full ID.\n    Comparator<SoyMsg> bucketComparator =\n            Comparator.comparingInt((SoyMsg m) -> bucketOf(m.getId())).thenComparingLong(SoyMsg::getId);\n    \n    List<SoyMsg> sortedMsgs = ImmutableList.sortedCopyOf(bucketComparator, msgs);\n\n    // Scan the sorted list to discover bucket boundaries and place them into the boundaries array.\n    bucketBoundaries = new int[numBuckets + 1];\n    int idx = 0;\n    for (int bucket = 0; bucket < numBuckets; bucket++) {\n        bucketBoundaries[bucket] = idx;\n        while (idx < sortedMsgs.size() && bucketOf(sortedMsgs.get(idx).getId()) == bucket) {\n            idx++;\n        }\n    }\n    bucketBoundaries[numBuckets] = sortedMsgs.size();\n\n    ids = new long[sortedMsgs.size()];\n    ImmutableList.Builder<SoyMsgPart> partsBuilder = ImmutableList.builder();\n    partRanges = new int[sortedMsgs.size() + 1];\n    partRanges[0] = 0; // The first range always starts at the beginning of the list.\n    long priorId = sortedMsgs.isEmpty() ? -1L : sortedMsgs.get(0).getId() - 1L;\n    int runningPartCount = 0;\n\n    for (int i = 0, c = sortedMsgs.size(); i < c; i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        ImmutableList<SoyMsgPart> parts = msg.getParts();\n\n        checkArgument(\n                msg.getId() != priorId, \"Duplicate messages are not permitted in the render-only impl.\");\n        checkArgument(\n                MsgPartUtils.hasPlrselPart(parts) == msg.isPlrselMsg(),\n                \"Message's plural/select status is inconsistent -- internal compiler bug.\");\n\n        priorId = msg.getId();\n        ids[i] = msg.getId();\n        partsBuilder.addAll(parts);\n        runningPartCount += parts.size();\n        partRanges[i + 1] = runningPartCount; // runningPartCount is the end of range, hence +1\n    }\n\n    // This will build the collections in the same order as the sorted map.\n    values = partsBuilder.build();\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[151,5] cannot find symbol\n  symbol:   class List"
+        ],
+        "validation_time": 7.425976991653442
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    int maskHigh = Integer.highestOneBit(Iterables.size(msgs));\n    this.bucketMask = (maskHigh | (maskHigh - 1)) >>> BUCKET_SHIFT;\n    int numBuckets = this.bucketMask + 1;\n\n    Comparator<SoyMsg> bucketComparator = Comparator.comparingInt((SoyMsg m) -> bucketOf(m.getId())).thenComparingLong(SoyMsg::getId);\n\n    List<SoyMsg> sortedMsgs = new ArrayList<>(Iterables.size(msgs));\n    Iterables.addAll(sortedMsgs, msgs);\n    sortedMsgs.sort(bucketComparator);\n\n    bucketBoundaries = new int[numBuckets + 1];\n    int idx = 0;\n    for (int bucket = 0; bucket < numBuckets; bucket++) {\n        bucketBoundaries[bucket] = idx;\n        while (idx < sortedMsgs.size() && bucketOf(sortedMsgs.get(idx).getId()) == bucket) {\n            idx++;\n        }\n    }\n    bucketBoundaries[numBuckets] = sortedMsgs.size();\n\n    ids = new long[sortedMsgs.size()];\n    List<SoyMsgPart> parts = new ArrayList<>();\n    partRanges = new int[sortedMsgs.size() + 1];\n    partRanges[0] = 0;\n    long priorId = -1L;\n    int runningPartCount = 0;\n\n    for (int i = 0; i < sortedMsgs.size(); i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        List<SoyMsgPart> msgParts = msg.getParts();\n\n        checkArgument(msg.getId() != priorId, \"Duplicate messages are not permitted in the render-only impl.\");\n        checkArgument(MsgPartUtils.hasPlrselPart(msgParts) == msg.isPlrselMsg(), \"Message's plural/select status is inconsistent -- internal compiler bug.\");\n\n        priorId = msg.getId();\n        ids[i] = msg.getId();\n        parts.addAll(msgParts);\n        runningPartCount += msgParts.size();\n        partRanges[i + 1] = runningPartCount;\n    }\n\n    values = ImmutableList.copyOf(parts);\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[149,5] cannot find symbol\n  symbol:   class List",
+            "[149,35] cannot find symbol\n  symbol:   class ArrayList",
+            "[164,5] cannot find symbol\n  symbol:   class List",
+            "[164,34] cannot find symbol\n  symbol:   class ArrayList",
+            "[172,9] cannot find symbol\n  symbol:   class List"
+        ],
+        "validation_time": 7.265706539154053
+    },
+    {
+        "patch": null,
+        "patched_method_loc": null,
+        "status": null,
+        "error_message": null,
+        "validation_time": null
+    },
+    {
+        "patch": "public RenderOnlySoyMsgBundleImpl(@Nullable String localeString, Iterable<SoyMsg> msgs) {\n\n    this.localeString = localeString;\n    this.locale = localeString == null ? null : new ULocale(localeString);\n    this.isRtl = BidiGlobalDir.forStaticLocale(localeString) == BidiGlobalDir.RTL;\n\n    int numMsgs = Iterables.size(msgs);\n\n    // This creates the mask. Basically, take the high-bit and fill in the bits below it.\n    int maskHigh = Integer.highestOneBit(numMsgs);\n    this.bucketMask = (maskHigh | (maskHigh - 1)) >>> BUCKET_SHIFT;\n    int numBuckets = this.bucketMask + 1;\n\n    // Sorts by bucket (low bits within the mask) and breaks ties with the full ID.\n    Comparator<SoyMsg> bucketComparator =\n            Comparator.comparingInt((SoyMsg m) -> bucketOf(m.getId())).thenComparingLong(SoyMsg::getId);\n    List<SoyMsg> sortedMsgs = new ArrayList<>(numMsgs);\n    sortedMsgs.addAll(msgs);\n    Collections.sort(sortedMsgs, bucketComparator);\n\n    // Scan the sorted list to discover bucket boundaries and place them into the boundaries array.\n    bucketBoundaries = new int[numBuckets + 1];\n    int idx = 0;\n    for (int bucket = 0; bucket < numBuckets; bucket++) {\n        bucketBoundaries[bucket] = idx;\n        while (idx < numMsgs && bucketOf(sortedMsgs.get(idx).getId()) == bucket) {\n            idx++;\n        }\n    }\n    bucketBoundaries[numBuckets] = numMsgs;\n\n    ids = new long[numMsgs];\n    ImmutableList.Builder<SoyMsgPart> partsBuilder = ImmutableList.builder();\n    partRanges = new int[numMsgs + 1];\n    partRanges[0] = 0; // The first range always starts at the beginning of the list.\n    long priorId = -1L;\n    int runningPartCount = 0;\n    for (int i = 0; i < numMsgs; i++) {\n        SoyMsg msg = sortedMsgs.get(i);\n        ImmutableList<SoyMsgPart> parts = msg.getParts();\n\n        checkArgument(\n                msg.getId() != priorId, \"Duplicate messages are not permitted in the render-only impl.\");\n        checkArgument(\n                MsgPartUtils.hasPlrselPart(parts) == msg.isPlrselMsg(),\n                \"Message's plural/select status is inconsistent -- internal compiler bug.\");\n\n        priorId = msg.getId();\n        ids[i] = msg.getId();\n        partsBuilder.addAll(parts);\n        runningPartCount += parts.size();\n        partRanges[i + 1] = runningPartCount; // runningPartCount is the end of range, hence +1\n    }\n\n    // This will build the collections in the same order as the sorted map.\n    values = partsBuilder.build();\n}",
+        "patched_method_loc": [
+            137,
+            null
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[153,5] cannot find symbol\n  symbol:   class List",
+            "[153,35] cannot find symbol\n  symbol:   class ArrayList",
+            "[155,5] cannot find symbol\n  symbol:   variable Collections"
+        ],
+        "validation_time": 7.271082401275635
+    }
+]
