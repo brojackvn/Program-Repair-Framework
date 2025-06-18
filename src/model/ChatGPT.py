@@ -1,4 +1,4 @@
-from src.model.AbstractRepair import AbstractRepair
+from src.model.AbstractModel import AbstractModel
 from src.utils.token_cost_estimator import calculate_cost
 from src.utils.logger import logger
 from openai import OpenAI
@@ -12,7 +12,7 @@ load_dotenv()
 api_key = os.getenv("API_KEY")
 client = OpenAI(api_key=api_key)
 
-class ChatGPT(AbstractRepair):
+class ChatGPT(AbstractModel):
     def __init__(self, model="gpt-3.5-turbo", temperature=0.7, top_p=0.95, top_k=50, frequency_penalty=0.0, presence_penalty=-0.5):
         self.model = model
         self.temperature = temperature
@@ -63,7 +63,7 @@ class ChatGPT(AbstractRepair):
             }
             # Generate the patch
             response = self.load_model(messages).choices[0].message.content
-            patch = self.decode_patch(response)
+            patch = self._decode_patch(response)
             # Calculate the cost
             input_tokens, output_tokens, total_cost = calculate_cost(self.model, messages, response)
             # Update the result
@@ -78,7 +78,7 @@ class ChatGPT(AbstractRepair):
         
         return results
 
-    def decode_patch(self, patch: str) -> str:
+    def _decode_patch(self, patch: str) -> str:
         '''
         Decode the patch from the response
 

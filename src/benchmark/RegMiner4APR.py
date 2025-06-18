@@ -49,25 +49,30 @@ def extract_test_results(message, max_message_length=1000, max_test_cases=10):
     Return:
         - List of test results
     '''
+    sections = message.split("--------------------------------------------------------------------------------")[1:]
+
     # Define the regex pattern to extract the summary line
     pattern = r"Test:\s(.+?)\nType:\s(.+?)\nMessage:\s(.+?)\n"
-    # Use re.findall to extract all matches
-    test_cases = re.findall(pattern, message)
 
     results = set()
-    for test_case in test_cases:
-        if len(results) <= max_test_cases:
-            if len(test_case[2]) <= max_message_length:
-                results.add(test_case[0] + ": " + test_case[1] + ": " + test_case[2])
-            else:
-                results.add(test_case[0] + ": " + test_case[1])
+    for section in sections:
+        match = re.search(r"Test:\s(.+?)\nType:\s(.+?)\nMessage:(.*)", section.strip(), re.DOTALL)
+        if match:
+            test_name = match.group(1).strip()
+            error_type = match.group(2).strip()
+            error_message = match.group(3).strip()
+            if len(results) < max_test_cases:
+                if len(error_message) <= max_message_length:
+                    results.add(f"{test_name}: {error_type}: {error_message}")
+                else:
+                    results.add(f"{test_name}: {error_type}")
+    
     return list(results)
 
 class RegMiner4APR(AbstractBenchmark):
-    def __init__(self, input_path, mapping_path, enviroment_dir, tmp_dir, output_dir):
+    def __init__(self, input_path, mapping_path, enviroment_dir, tmp_dir):
         self.enviroment_dir = enviroment_dir
         self.tmp_dir = tmp_dir
-        self.output_dir = output_dir
         self.mapping = self.load_mappings(mapping_path)
         self.info = self.load_info(input_path)
 
@@ -234,7 +239,7 @@ class RegMiner4APR(AbstractBenchmark):
                 running_result["error_message"] = None
         return running_result
     
-    def validate(self, data_id, patches, output_file_name, time_limit=1800):
+    def validate(self, data_id, patch_info, time_limit=1800):
         '''
         Validate the patches and return the results
 
@@ -251,301 +256,121 @@ class RegMiner4APR(AbstractBenchmark):
         # Extract the bug information
         bug_info = self.load_single_info(data_id)
         bug_id, src_dir, buggy_relative_path, buggy_file, buggy_loc, method_loc = bug_info["bug_id"], bug_info["src_dir"], bug_info["buggy_relative_path"], bug_info["buggy_file"], bug_info["buggy_loc"], bug_info["method_loc"]
-        # Setup the output directory
-        validated_patch_file = os.path.join(self.output_dir, f'{output_file_name}.json')
-        os.makedirs(os.path.dirname(validated_patch_file), exist_ok=True)
         
         plausible = 0
-        compliable = 0
-        non_compliable = 0
+        compilable = 0
+        non_compilable = 0
         timeout = 0
         generation_error = 0
-        # Iterate over the patches
-        for rank, patch in enumerate(patches):
-            # Setup the validation directory
-            validation_dir = self.setup_validation_dir(data_id)
-            start_time = time.time()
-
-            # Apply the patched method only
-            def apply_patch(validation_dir, buggy_relative_path, patch, method_loc):
-                '''
-                Apply the patch to the buggy file
-
-                Args:
-                    - validation_dir: str
-                    - buggy_relative_path: str
-                    - patch: str
-                    - method_loc: (start, end)
-                Return:
-                    - patched_method: str
-                    - (new_start_method_loc, new_end_method_loc): (int, int)                
-                '''
-                # Initialize the patched file
-                patched_file = ''
-                # Initialize the patched method
-                patched_method = str()
-
-                # Read the buggy file
-                buggy_file = os.path.join(validation_dir, buggy_relative_path)
-                with open(buggy_file, "r") as f:
-                    lines = f.readlines()
-
-                # Convert 1-based index to 0-based index
-                start_method_loc = method_loc[0] - 1
-                end_method_loc   = method_loc[1] - 1
-                
-                # Split the patch into method and its imports
-                imports, methods = extract_imports_and_methods(patch)
-                if len(methods) == 0:
-                    logger.warning("Cannot find the patched method!")
-                    return None, None
-                patched_method = methods[0]
-
-                # Apply the patch to the buggy file
-                for index in range(len(lines)):
-                    if index < start_method_loc or index > end_method_loc - 1:
-                        patched_file += lines[index]
-                    elif index == start_method_loc:
-                        patched_file += patched_method + "\n"
-                
-                # Add the imports to the patched file, if any
-                added_lines_count = 0
-                if len(imports) > 0:
-                    patched_file, added_lines_count = add_import_statement(patched_file, imports)
-
-                # Write the patched file to the buggy file
-                with open(buggy_file, "w") as f:
-                    f.write(patched_file)
-
-                # Retrive the method location
-                new_start_method_loc, new_end_method_loc = (start_method_loc + 1) + added_lines_count, get_method_end_line(patched_file, (start_method_loc + 1) + added_lines_count)
-                
-                return patched_method, (new_start_method_loc, new_end_method_loc)
-            
-            # If the response is None, meaning the patch is not generated
-            if patch is None:
-                logger.warning("Cannot generate the patch!")
-                write_json_file(
-                    {
-                        "patch": None,
-                        "patched_method_loc": None,
-                        "status": "[ResponseError]",
-                        "error_message": None,
-                        "validation_time": None,
-                    },
-                    validated_patch_file
-                )
-                generation_error += 1
-                self.clear_validation_dir(data_id)
-                continue
-
-            patched_method, patched_method_loc = apply_patch(validation_dir, buggy_relative_path, patch, method_loc)
-            
-            # If the response does not contain the patched method, meaning the patch is not generated
-            if patched_method is None:
-                generation_error += 1
-                write_json_file(
-                    {
-                        "patch": None,
-                        "patched_method_loc": None,
-                        "status": "[ResponseError]",
-                        "error_message": None,
-                        "validation_time": None,
-                    },
-                    validated_patch_file
-                )
-                self.clear_validation_dir(data_id)
-                continue
-
-            # Execute the program
-            executionResult = self.execute(validation_dir)
-            
-            # Save the results
-            write_json_file(
-                {
-                    "patch": patched_method,
-                    "patched_method_loc": patched_method_loc,
-                    "status": executionResult["status"],
-                    "error_message": executionResult["error_message"],
-                    "validation_time": time.time() - start_time
-                },
-                validated_patch_file
-            )
         
-            # Evaluate the results
-            if executionResult["status"] == "[Plausible]":
-                plausible += 1
-            elif executionResult["status"] == "[FE]":
-                compliable += 1
-            elif executionResult["status"] == "[CE]":
-                non_compliable += 1
-            elif executionResult["status"] == "[Timeout]":
-                timeout += 1
+        # Setup the validation directory
+        validation_dir = self.setup_validation_dir(data_id)
+        start_time = time.time()
+
+        # Apply the patched method only
+        def apply_patch(validation_dir, buggy_relative_path, patch, method_loc):
+            '''
+            Apply the patch to the buggy file
+
+            Args:
+                - validation_dir: str
+                - buggy_relative_path: str
+                - patch: str
+                - method_loc: (start, end)
+            Return:
+                - patched_method: str
+                - (new_start_method_loc, new_end_method_loc): (int, int)                
+            '''
+            # Initialize the patched file
+            patched_file = ''
+            # Initialize the patched method
+            patched_method = str()
+
+            # Read the buggy file
+            buggy_file = os.path.join(validation_dir, buggy_relative_path)
+            with open(buggy_file, "r") as f:
+                lines = f.readlines()
+
+            # Convert 1-based index to 0-based index
+            start_method_loc = method_loc[0] - 1
+            end_method_loc   = method_loc[1] - 1
             
+            # Split the patch into method and its imports
+            imports, methods = extract_imports_and_methods(patch)
+            if len(methods) == 0:
+                logger.warning("Cannot find the patched method!")
+                return None, None
+            patched_method = methods[0]
+
+            # Apply the patch to the buggy file
+            for index in range(len(lines)):
+                if index < start_method_loc or index > end_method_loc - 1:
+                    patched_file += lines[index]
+                elif index == start_method_loc:
+                    patched_file += patched_method + "\n"
+            
+            # Add the imports to the patched file, if any
+            added_lines_count = 0
+            if len(imports) > 0:
+                patched_file, added_lines_count = add_import_statement(patched_file, imports)
+
+            # Write the patched file to the buggy file
+            with open(buggy_file, "w") as f:
+                f.write(patched_file)
+
+            # Retrive the method location
+            new_start_method_loc, new_end_method_loc = (start_method_loc + 1) + added_lines_count, get_method_end_line(patched_file, (start_method_loc + 1) + added_lines_count)
+            
+            return patched_method, (new_start_method_loc, new_end_method_loc)
+        
+        patched_method, patched_method_loc = apply_patch(validation_dir, buggy_relative_path, patch_info['patch'], method_loc)
+        
+        # If the response does not contain the patched method, meaning the patch is not generated
+        if patched_method is None:
+            generation_error += 1
             self.clear_validation_dir(data_id)
-
-        return non_compliable, compliable, plausible, timeout, generation_error
-
-    def validate_and_store(self, data_id, patch_info_list, output_file_name, time_limit=1800):
-        '''
-        Validate the patches and return the results
-
-        Return: Save the results in the output_dir as validated_patches.json
-        {
-            {
-                "id": patch_id,
-                "status": [CE] || [FE] || [Plausible],
-                "error_message": str,
-                "time": float
+            return {
+                "patch": None,
+                "patched_method_loc": None,
+                "status": "[ResponseError]",
+                "error_message": None,
+                "validation_time": None,
+                "result": {
+                    "non_compilable": non_compilable, 
+                    "compilable": compilable, 
+                    "plausible": plausible, 
+                    "timeout": timeout, 
+                    "generation_error": generation_error
+                }
             }
+
+        # Execute the program
+        executionResult = self.execute(validation_dir)
+        
+        # Evaluate the results
+        if executionResult["status"] == "[Plausible]":
+            plausible += 1
+        elif executionResult["status"] == "[FE]":
+            compilable += 1
+        elif executionResult["status"] == "[CE]":
+            non_compilable += 1
+        elif executionResult["status"] == "[Timeout]":
+            timeout += 1
+        
+        self.clear_validation_dir(data_id)
+
+        # Save the results
+        return {
+            "patch": patch_info['patch'],
+            "patched_method_loc": patched_method_loc,
+            "status": executionResult["status"],
+            "error_message": executionResult["error_message"],
+            "validation_time": time.time() - start_time,
+            "result": {
+                    "non_compilable": non_compilable, 
+                    "compilable": compilable, 
+                    "plausible": plausible, 
+                    "timeout": timeout, 
+                    "generation_error": generation_error
+                }
         }
-        '''
-        # Extract the bug information
-        bug_info = self.load_single_info(data_id)
-        bug_id, src_dir, buggy_relative_path, buggy_file, buggy_loc, method_loc = bug_info["bug_id"], bug_info["src_dir"], bug_info["buggy_relative_path"], bug_info["buggy_file"], bug_info["buggy_loc"], bug_info["method_loc"]
-        # Setup the output directory
-        validated_patch_file = os.path.join(self.output_dir, f'{output_file_name}.json')
-        os.makedirs(os.path.dirname(validated_patch_file), exist_ok=True)
-        
-        plausible = 0
-        compliable = 0
-        non_compliable = 0
-        timeout = 0
-        generation_error = 0
-        # Iterate over the patches
-        for rank, patch_info in enumerate(patch_info_list):
-            # Setup the validation directory
-            validation_dir = self.setup_validation_dir(data_id)
-            start_time = time.time()
-
-            # Apply the patched method only
-            def apply_patch(validation_dir, buggy_relative_path, patch, method_loc):
-                '''
-                Apply the patch to the buggy file
-
-                Args:
-                    - validation_dir: str
-                    - buggy_relative_path: str
-                    - patch: str
-                    - method_loc: (start, end)
-                Return:
-                    - patched_method: str
-                    - (new_start_method_loc, new_end_method_loc): (int, int)                
-                '''
-                # Initialize the patched file
-                patched_file = ''
-                # Initialize the patched method
-                patched_method = str()
-
-                # Read the buggy file
-                buggy_file = os.path.join(validation_dir, buggy_relative_path)
-                with open(buggy_file, "r") as f:
-                    lines = f.readlines()
-
-                # Convert 1-based index to 0-based index
-                start_method_loc = method_loc[0] - 1
-                end_method_loc   = method_loc[1] - 1
-                
-                # Split the patch into method and its imports
-                imports, methods = extract_imports_and_methods(patch)
-                if len(methods) == 0:
-                    logger.warning("Cannot find the patched method!")
-                    return None, None
-                patched_method = methods[0]
-
-                # Apply the patch to the buggy file
-                for index in range(len(lines)):
-                    if index < start_method_loc or index > end_method_loc - 1:
-                        patched_file += lines[index]
-                    elif index == start_method_loc:
-                        patched_file += patched_method + "\n"
-                
-                # Add the imports to the patched file, if any
-                added_lines_count = 0
-                if len(imports) > 0:
-                    patched_file, added_lines_count = add_import_statement(patched_file, imports)
-
-                # Write the patched file to the buggy file
-                with open(buggy_file, "w") as f:
-                    f.write(patched_file)
-
-                # Retrive the method location
-                new_start_method_loc, new_end_method_loc = (start_method_loc + 1) + added_lines_count, get_method_end_line(patched_file, (start_method_loc + 1) + added_lines_count)
-                
-                return patched_method, (new_start_method_loc, new_end_method_loc)
-            
-            # If the response is None, meaning API response is error
-            if patch_info['patch'] is None:
-                logger.warning("Cannot generate the patch!")
-                generation_error += 1
-                write_json_file(
-                    {
-                        "patch": None,
-                        "patched_method_loc": None,
-                        "status": "[ResponseError]",
-                        "error_message": None,
-                        "validation_time": None,
-                        "response": patch_info['response'],
-                        "input_tokens": patch_info['input_tokens'],
-                        "output_tokens": patch_info['output_tokens'],
-                        "total_cost": patch_info['total_cost']
-                    },
-                    validated_patch_file
-                )
-                self.clear_validation_dir(data_id)
-                continue
-            
-            patched_method, patched_method_loc = apply_patch(validation_dir, buggy_relative_path, patch_info['patch'], method_loc)
-            
-            # If the response does not contain the patched method, meaning the patch is not generated
-            if patched_method is None:
-                generation_error += 1
-                write_json_file(
-                    {
-                        "patch": None,
-                        "patched_method_loc": None,
-                        "status": "[ResponseError]",
-                        "error_message": None,
-                        "validation_time": None,
-                        "response": patch_info['response'],
-                        "input_tokens": patch_info['input_tokens'],
-                        "output_tokens": patch_info['output_tokens'],
-                        "total_cost": patch_info['total_cost']
-                    },
-                    validated_patch_file
-                )
-                self.clear_validation_dir(data_id)
-                continue
-
-            # Execute the program
-            executionResult = self.execute(validation_dir)
-            
-            # Save the results
-            write_json_file(
-                {
-                    "patch": patch_info['patch'],
-                    "patched_method_loc": patched_method_loc,
-                    "status": executionResult["status"],
-                    "error_message": executionResult["error_message"],
-                    "validation_time": time.time() - start_time,
-                    "response": patch_info['response'],
-                    "input_tokens": patch_info['input_tokens'],
-                    "output_tokens": patch_info['output_tokens'],
-                    "total_cost": patch_info['total_cost']
-                },
-                validated_patch_file
-            )
-        
-            # Evaluate the results
-            if executionResult["status"] == "[Plausible]":
-                plausible += 1
-            elif executionResult["status"] == "[FE]":
-                compliable += 1
-            elif executionResult["status"] == "[CE]":
-                non_compliable += 1
-            elif executionResult["status"] == "[Timeout]":
-                timeout += 1
-            
-            self.clear_validation_dir(data_id)
-
-        return non_compliable, compliable, plausible, timeout, generation_error

@@ -1,6 +1,6 @@
 import abc
 
-class AbstractRepair():
+class AbstractModel():
     def __init__(self):
         pass
 
@@ -10,8 +10,4 @@ class AbstractRepair():
     
     @abc.abstractmethod
     def generate_patch(self):
-        pass
-
-    @abc.abstractmethod
-    def decode_patch(self):
         pass

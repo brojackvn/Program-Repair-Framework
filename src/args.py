@@ -17,7 +17,7 @@ def common_args(parser):
     parser.add_argument("--output-dir", type=str, required=True, help="Path to the output directory.")
     parser.add_argument("--tmp-dir", type=str, default="tmp/apr-experiments", help="Path to the temporary directory.")
     parser.add_argument("--env-dir", type=str, required=True, help="Path to the environment directory.")
-    parser.add_argument('--early-stop', action='store_true', default=False, help="Stop when a plausible patch is found (default: False).")
+    parser.add_argument('--early-stop', action='store_true', default=True, help="Stop when a plausible patch is found (default: True).")
     parser.add_argument("--time-limit", default=1800, type=int, help="Timeout in seconds (default: 1800).")
 
 def prompt_repair_args(parser):
@@ -29,9 +29,9 @@ def prompt_repair_args(parser):
     parser.add_argument("--model-name", type=str, required=True, help="Name or path to the repair tool.")
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for sampling (default: 0.7).")
     parser.add_argument("--top-p", type=float, default=0.95, help="Top-p for sampling (default: 0.95).")
-    parser.add_argument("--top-k", type=int, default=None, help="Top-k for sampling (default: 50).")
-    parser.add_argument("--frequency-penalty", type=float, default=None, help="Frequency penalty for sampling (default: 0.0).")
-    parser.add_argument("--presence-penalty", type=float, default=None, help="Presence penalty for sampling (default: -0.5).")
+    parser.add_argument("--top-k", type=int, default=50, help="Top-k for sampling (default: 50).")
+    parser.add_argument("--frequency-penalty", type=float, default=0.0, help="Frequency penalty for sampling (default: 0.0).")
+    parser.add_argument("--presence-penalty", type=float, default=-0.5, help="Presence penalty for sampling (default: -0.5).")
 
 def conversational_repair_args(parser):
     # Environment arguments
@@ -43,9 +43,9 @@ def conversational_repair_args(parser):
     parser.add_argument("--model-name", type=str, required=True, help="Name or path to the repair tool.")
     parser.add_argument("--temperature", type=float, default=0.7, help="Temperature for sampling (default: 0.7).")
     parser.add_argument("--top-p", type=float, default=0.95, help="Top-p for sampling (default: 0.95).")
-    parser.add_argument("--top-k", type=int, default=None, help="Top-k for sampling (default: 50).")
-    parser.add_argument("--frequency-penalty", type=float, default=None, help="Frequency penalty for sampling (default: 0.0).")
-    parser.add_argument("--presence-penalty", type=float, default=None, help="Presence penalty for sampling (default: -0.5).")
+    parser.add_argument("--top-k", type=int, default=50, help="Top-k for sampling (default: 50).")
+    parser.add_argument("--frequency-penalty", type=float, default=0.0, help="Frequency penalty for sampling (default: 0.0).")
+    parser.add_argument("--presence-penalty", type=float, default=-0.5, help="Presence penalty for sampling (default: -0.5).")
 
 parser = argparse.ArgumentParser(
     usage="API-REPAIR FRAMEWORK",
