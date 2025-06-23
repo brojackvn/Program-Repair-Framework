@@ -9,7 +9,7 @@ import json
 import re
 import time
 
-def extract_compilation_error(log: str) -> str:
+def extract_compilation_error(log: str):
     '''
     Extract the compilation error from the log
 
