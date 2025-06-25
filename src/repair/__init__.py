@@ -8,16 +8,16 @@ def create_repair_instance(args):
     """
     Factory function to create a repair instance based on the specified arguments.
     """
-    if args.option == "prompt-apr":
+    if args.option == "prompt-apr" and args.dataset == "regminer4apr":
         logger.info("Creating PromptAPR instance...")
         return RegMiner4APR_ChatGPT_PromptAPR(args)
-    elif args.option == "conversational-apr":
+    elif args.option == "conversational-apr" and args.dataset == "regminer4apr":
         logger.info("Creating ConversationalAPR instance...")
         return RegMiner4APR_ChatGPT_ConversationalAPR(args)
-    elif args.option == "prompt-apr-with-bic":
+    elif args.option == "prompt-apr-with-bic" and args.dataset == "regminer4apr":
         logger.info("Creating PromptAPR with BIC instance...")
         return RegMiner4APR_ChatGPT_PromptAPR_BIC(args)
-    elif args.option == "conversational-apr-with-bic":
+    elif args.option == "conversational-apr-with-bic" and args.dataset == "regminer4apr":
         logger.info("Creating ConversationalAPR with BIC instance...")
         return RegMiner4APR_ChatGPT_ConversationalAPR_BIC(args)
     else:
