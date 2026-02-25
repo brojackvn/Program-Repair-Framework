@@ -5,7 +5,11 @@ This project provides several shell scripts to run Automated Program Repair (APR
 ## 🔧 Setup
 
 ### 1. Set the OpenAI API Key
-The `.env` file is already created. Please ensure it includes your OpenAI API key.
+The `.env` file is not included in the repository. Please create a `.env` file in the root directory of the project and add your OpenAI API key as follows:
+```
+API_KEY=""
+```
+
 
 ### 2. Install Dependencies
 
