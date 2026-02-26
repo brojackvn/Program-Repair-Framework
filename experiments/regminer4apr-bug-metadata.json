@@ -924,7 +924,7 @@
         "bug_inducing_changes": "@@ -2,2 +2,2 @@\n-        Method actionMethod = hookRoute.getAction();\n-        Object target       = hookRoute.getTarget();\n+        Method hookMethod = hookRoute.getAction();\n+        Object target     = hookRoute.getTarget();\n@@ -10,2 +10,2 @@\n-        int len = actionMethod.getParameterTypes().length;\n-        actionMethod.setAccessible(true);\n+        int len = hookMethod.getParameterTypes().length;\n+        hookMethod.setAccessible(true);\n@@ -14,6 +14 @@\n-            Signature signature = Signature.builder().route(hookRoute)\n-                    .request(routeSignature.request()).response(routeSignature.response())\n-                    .parameters(routeSignature.getParameters())\n-                    .action(actionMethod).build();\n-            Object[] args = MethodArgument.getArgs(signature);\n-            returnParam = ReflectKit.invokeMethod(target, actionMethod, args);\n+            returnParam = ReflectKit.invokeMethod(target, hookMethod, routeSignature);\n@@ -21 +16 @@\n-            returnParam = ReflectKit.invokeMethod(target, actionMethod);\n+            returnParam = ReflectKit.invokeMethod(target, hookMethod);\n"
     },
     "100_src/main/java/org/archive/url/BasicURLCanonicalizer.java": {
-        "context": "",
+        "context": "\tprivate String normalizeDots(String host) {\n\t\tif (host.indexOf('.') == -1) {\n\t\t\treturn host;\n\t\t}\n\t\tint start = 0, end = host.length();\n\t\tboolean changed = false;\n\t\twhile (host.charAt(start) == '.') {\n\t\t\tstart++;\n\t\t\tchanged = true;\n\t\t}\n\t\twhile (host.charAt(end - 1) == '.') {\n\t\t\tend--;\n\t\t\tchanged = true;\n\t\t}\n\t\tif (changed) {\n\t\t\thost = host.substring(start, end);\n\t\t}\n\t\tif (host.contains(\"..\")) {\n\t\t\thost = MULTIDOT.matcher(host).replaceAll(\".\");\n\t\t}\n\t\treturn host;\n\t}\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "100",
@@ -937,8 +937,8 @@
         "bic_commit_message": "",
         "bug_inducing_changes": ""
     },
-    "101_src/main/java/org/traccar/protocol/EelinkProtocolDecoder.java": {
-        "context": "",
+    "101_src/org/traccar/protocol/EelinkProtocolDecoder.java": {
+        "context": "    private Position decodeOld(DeviceSession deviceSession, ChannelBuffer buf, int type, int index) {\n\n        Position position = new Position();\n        position.setDeviceId(deviceSession.getDeviceId());\n        position.setProtocol(getProtocolName());\n\n        position.set(Position.KEY_INDEX, index);\n\n        position.setTime(new Date(buf.readUnsignedInt() * 1000));\n        position.setLatitude(buf.readInt() / 1800000.0);\n        position.setLongitude(buf.readInt() / 1800000.0);\n        position.setSpeed(UnitsConverter.knotsFromKph(buf.readUnsignedByte()));\n        position.setCourse(buf.readUnsignedShort());\n\n        position.setNetwork(new Network(CellTower.from(\n                buf.readUnsignedShort(), buf.readUnsignedShort(), buf.readUnsignedShort(), buf.readUnsignedMedium())));\n\n        position.setValid((buf.readUnsignedByte() & 0x01) != 0);\n\n        if (type == MSG_GPS) {\n\n            if (buf.readableBytes() >= 2) {\n                decodeStatus(position, buf.readUnsignedShort());\n            }\n\n            if (buf.readableBytes() >= 2 * 4) {\n\n                position.set(Position.KEY_BATTERY, buf.readUnsignedShort() * 0.001);\n\n                position.set(Position.KEY_RSSI, buf.readUnsignedShort());\n\n                position.set(Position.PREFIX_ADC + 1, buf.readUnsignedShort());\n                position.set(Position.PREFIX_ADC + 2, buf.readUnsignedShort());\n\n            }\n\n        } else if (type == MSG_ALARM) {\n\n            position.set(Position.KEY_ALARM, decodeAlarm(buf.readUnsignedByte()));\n\n        } else if (type == MSG_STATE) {\n\n            int statusType = buf.readUnsignedByte();\n\n            position.set(Position.KEY_EVENT, statusType);\n\n            if (statusType == 0x01 || statusType == 0x02 || statusType == 0x03) {\n                buf.readUnsignedInt(); // device time\n                decodeStatus(position, buf.readUnsignedShort());\n            }\n\n        }\n\n        return position;\n    }\n",
         "start_line": 163,
         "end_line": 164,
         "bug_id": "101",
@@ -952,7 +952,7 @@
         "bug_inducing_changes": ""
     },
     "102_src/main/java/com/fasterxml/jackson/core/JsonLocation.java": {
-        "context": "",
+        "context": "    public StringBuilder appendOffsetDescription(StringBuilder sb)\n    {\n        // 04-Apr-2021, tatu: [core#694] For binary content, we have no line\n        //    number or column position indicators; try using what we do have\n        //    (if anything)\n\n        if (_contentReference.hasTextualContent()) {\n            sb.append(\"line: \");\n            // should be 1-based, but consider -1 to be canonical \"got none\"\n            if (_lineNr >= 0) {\n                sb.append(_lineNr);\n            } else {\n                sb.append(\"UNKNOWN\");\n            }\n            sb.append(\", column: \");\n            if (_columnNr >= 0) { // same here\n                sb.append(_columnNr);\n            } else {\n                sb.append(\"UNKNOWN\");\n            }\n        } else {\n            // 04-Apr-2021, tatu: Ideally byte formats would not need line/column\n            //    info, but for backwards-compatibility purposes (Jackson 2.x),\n            //    will leave logic here\n            if (_lineNr > 0) { // yes, require 1-based in case of allegedly binary content\n                sb.append(\"line: \").append(_lineNr);\n                if (_columnNr > 0) {\n                    sb.append(\", column: \");\n                    sb.append(_columnNr);\n                }\n            } else {\n                sb.append(\"byte offset: #\");\n                // For binary formats, total bytes should be the canonical offset\n                // for token/current location\n                if (_totalBytes >= 0) {\n                    sb.append(_totalBytes);\n                } else {\n                    sb.append(\"UNKNOWN\");\n                }\n            }\n        }\n        return sb;\n    }\n",
         "start_line": 176,
         "end_line": 194,
         "bug_id": "102",
@@ -966,7 +966,7 @@
         "bug_inducing_changes": ""
     },
     "103_src/main/java/com/google/code/regexp/Matcher.java": {
-        "context": "",
+        "context": "    public List<Map<String, String>> namedGroups() {\n        List<Map<String, String>> result = new ArrayList<Map<String, String>>();\n        List<String> groupNames = parentPattern.groupNames();\n\n        if (groupNames.isEmpty()) {\n            return result;\n        }\n\n        int nextIndex = 0;\n        while (!matcher.hitEnd() && matcher.find(nextIndex)) {\n            Map<String, String> matches = new LinkedHashMap<String, String>();\n\n            for (String groupName : groupNames) {\n                String groupValue = matcher.group(groupIndex(groupName));\n                matches.put(groupName, groupValue);\n                nextIndex = matcher.end();\n            }\n\n            result.add(matches);\n        }\n        return result;\n    }\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "102",
@@ -980,7 +980,7 @@
         "bug_inducing_changes": ""
     },
     "104_src/main/java/com/google/code/regexp/Matcher.java": {
-        "context": "",
+        "context": "    public List<Map<String, String>> namedGroups() {\n        List<Map<String, String>> result = new ArrayList<Map<String, String>>();\n        List<String> groupNames = parentPattern.groupNames();\n\n        if (groupNames.isEmpty()) {\n            return result;\n        }\n\n        int nextIndex = 0;\n        while (matcher.find(nextIndex)) {\n            Map<String, String> matches = new LinkedHashMap<String, String>();\n\n            for (String groupName : groupNames) {\n                String groupValue = matcher.group(groupIndex(groupName));\n                matches.put(groupName, groupValue);\n                nextIndex = matcher.end();\n            }\n\n            result.add(matches);\n        }\n        return result;\n    }\n",
         "start_line": 304,
         "end_line": 305,
         "bug_id": "104",
@@ -994,7 +994,7 @@
         "bug_inducing_changes": ""
     },
     "105_src/main/java/com/google/code/regexp/Matcher.java": {
-        "context": "",
+        "context": "    public List<Map<String, String>> namedGroups() {\n        List<Map<String, String>> result = new ArrayList<Map<String, String>>();\n\n        int nextIndex = 0;\n        while (matcher.find(nextIndex)) {\n            Map<String, String> matches = new LinkedHashMap<String, String>();\n\n            for (String groupName : parentPattern.groupNames()) {\n                String groupValue = matcher.group(groupIndex(groupName));\n                matches.put(groupName, groupValue);\n                nextIndex = matcher.end();\n            }\n\n            result.add(matches);\n        }\n        return result;\n    }\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "105",
@@ -1008,7 +1008,7 @@
         "bug_inducing_changes": ""
     },
     "106_src/main/java/crawlercommons/domains/EffectiveTldFinder.java": {
-        "context": "",
+        "context": "    public static EffectiveTLD getEffectiveTLD(String hostname, boolean excludePrivate) {\n        if (getInstance().domains.containsKey(hostname)) {\n            EffectiveTLD foundTld = getInstance().domains.get(hostname);\n            if (!excludePrivate || !foundTld.isPrivate) {\n                return foundTld;\n            }\n        }\n        String[] parts = hostname.split(DOT_REGEX);\n        for (int i = 1; i < parts.length; i++) {\n            String[] slice = Arrays.copyOfRange(parts, i, parts.length);\n            String tryTld = join(slice);\n            if (LOGGER.isDebugEnabled()) {\n                LOGGER.debug(hostname + \" [\" + i + \"..\" + parts.length + \"]: \" + Arrays.toString(slice) + \" => \" + tryTld);\n            }\n            if (getInstance().domains.containsKey(tryTld)) {\n                EffectiveTLD foundTld = getInstance().domains.get(tryTld);\n                if (excludePrivate && foundTld.isPrivate) {\n                    continue;\n                }\n                if (foundTld.isException() || !foundTld.isWild()) {\n                    return foundTld;\n                }\n                // wildcards create an open ETLD namespace\n                slice = Arrays.copyOfRange(parts, i - 1, parts.length);\n                String retryTld = join(slice);\n                foundTld = new EffectiveTLD(retryTld, foundTld.isPrivate);\n                return foundTld;\n            }\n        }\n        return null;\n    }\n",
         "start_line": 187,
         "end_line": 188,
         "bug_id": "106",
@@ -1022,7 +1022,7 @@
         "bug_inducing_changes": ""
     },
     "107_src/main/java/org/jsoup/select/QueryParser.java": {
-        "context": "",
+        "context": "    private QueryParser(String query) {\n        this.query = query;\n        this.tq = new TokenQueue(query);\n    }\n",
         "start_line": 30,
         "end_line": 30,
         "bug_id": "107",
@@ -1036,7 +1036,7 @@
         "bug_inducing_changes": ""
     },
     "108_src/main/java/org/jsoup/parser/HtmlTreeBuilder.java": {
-        "context": "",
+        "context": "    private boolean inSpecificScope(String[] targetNames, String[] baseTypes, String[] extraTypes) {\n        int depth = stack.size() -1;\n        if (depth > MaxScopeSearchDepth) {\n            depth = MaxScopeSearchDepth;\n        }\n        for (int pos = depth; pos >= 0; pos--) {\n            Element el = stack.get(pos);\n            String elName = el.nodeName();\n            if (inSorted(elName, targetNames))\n                return true;\n            if (inSorted(elName, baseTypes))\n                return false;\n            if (extraTypes != null && inSorted(elName, extraTypes))\n                return false;\n        }\n        Validate.fail(\"Should not be reachable\");\n        return false;\n    }\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "108",
@@ -1050,7 +1050,7 @@
         "bug_inducing_changes": ""
     },
     "109_src/main/java/org/jsoup/parser/CharacterReader.java": {
-        "context": "",
+        "context": "    private void bufferUp() {\n        if (readFully)\n            return;\n\n        final int pos = bufPos;\n        if (pos < bufSplitPoint)\n            return;\n\n        try {\n            final long skipped = reader.skip(pos);\n            reader.mark(maxBufferLen);\n            int read = 0;\n            while (read <= minReadAheadLen) {\n                int thisRead = reader.read(charBuf, read, charBuf.length - read);\n                if (thisRead == -1)\n                    readFully = true;\n                if (thisRead <= 0)\n                    break;\n                read += thisRead;\n            }\n            reader.reset();\n            if (read > 0) {\n                Validate.isTrue(skipped == pos); // Previously asserted that there is room in buf to skip, so this will be a WTF\n                bufLength = read;\n                readerPos += pos;\n                bufPos = 0;\n                bufMark = -1;\n                bufSplitPoint = bufLength > readAheadLimit ? readAheadLimit : bufLength;\n            }\n        } catch (IOException e) {\n            throw new UncheckedIOException(e);\n        }\n    }\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "109",
@@ -1063,8 +1063,8 @@
         "bic_commit_message": "",
         "bug_inducing_changes": ""
     },
-    "111_src/main/java/org/jsoup/parser/CharacterReader.java": {
-        "context": "",
+    "111_src/main/java/org/apache/commons/beanutils/BeanUtilsBean.java": {
+        "context": "    public void setProperty(Object bean, String name, Object value)\n        throws IllegalAccessException, InvocationTargetException {\n\n        // Trace logging (if enabled)\n        if (log.isTraceEnabled()) {\n            StringBuilder sb = new StringBuilder(\"  setProperty(\");\n            sb.append(bean);\n            sb.append(\", \");\n            sb.append(name);\n            sb.append(\", \");\n            if (value == null) {\n                sb.append(\"<NULL>\");\n            } else if (value instanceof String) {\n                sb.append((String) value);\n            } else if (value instanceof String[]) {\n                String[] values = (String[]) value;\n                sb.append('[');\n                for (int i = 0; i < values.length; i++) {\n                    if (i > 0) {\n                        sb.append(',');\n                    }\n                    sb.append(values[i]);\n                }\n                sb.append(']');\n            } else {\n                sb.append(value.toString());\n            }\n            sb.append(')');\n            log.trace(sb.toString());\n        }\n\n        // Resolve any nested expression to get the actual target bean\n        Object target = bean;\n        Resolver resolver = getPropertyUtils().getResolver();\n        while (resolver.hasNested(name)) {\n            try {\n                target = getPropertyUtils().getProperty(target, resolver.next(name));\n                if (target == null) { // the value of a nested property is null\n                    return;\n                }\n                name = resolver.remove(name);\n            } catch (NoSuchMethodException e) {\n                return; // Skip this property setter\n            }\n        }\n        if (log.isTraceEnabled()) {\n            log.trace(\"    Target bean = \" + target);\n            log.trace(\"    Target name = \" + name);\n        }\n\n        // Declare local variables we will require\n        String propName = resolver.getProperty(name); // Simple name of target property\n        Class<?> type = null;                         // Java type of target property\n        int index  = resolver.getIndex(name);         // Indexed subscript value (if any)\n        String key = resolver.getKey(name);           // Mapped key value (if any)\n\n        // Calculate the property type\n        if (target instanceof DynaBean) {\n            DynaClass dynaClass = ((DynaBean) target).getDynaClass();\n            DynaProperty dynaProperty = dynaClass.getDynaProperty(propName);\n            if (dynaProperty == null) {\n                return; // Skip this property setter\n            }\n            type = dynaPropertyType(dynaProperty, value);\n        } else if (target instanceof Map) {\n            type = Object.class;\n        } else if (target != null && target.getClass().isArray() && index >= 0) {\n            type = Array.get(target, index).getClass();\n        } else {\n            PropertyDescriptor descriptor = null;\n            try {\n                descriptor =\n                    getPropertyUtils().getPropertyDescriptor(target, name);\n                if (descriptor == null) {\n                    return; // Skip this property setter\n                }\n            } catch (NoSuchMethodException e) {\n                return; // Skip this property setter\n            }\n            if (descriptor instanceof MappedPropertyDescriptor) {\n                if (((MappedPropertyDescriptor) descriptor).getMappedWriteMethod() == null) {\n                    if (log.isDebugEnabled()) {\n                        log.debug(\"Skipping read-only property\");\n                    }\n                    return; // Read-only, skip this property setter\n                }\n                type = ((MappedPropertyDescriptor) descriptor).\n                    getMappedPropertyType();\n            } else if (index >= 0 && descriptor instanceof IndexedPropertyDescriptor) {\n                if (((IndexedPropertyDescriptor) descriptor).getIndexedWriteMethod() == null) {\n                    if (log.isDebugEnabled()) {\n                        log.debug(\"Skipping read-only property\");\n                    }\n                    return; // Read-only, skip this property setter\n                }\n                type = ((IndexedPropertyDescriptor) descriptor).\n                    getIndexedPropertyType();\n            } else if (key != null) {\n                if (descriptor.getReadMethod() == null) {\n                    if (log.isDebugEnabled()) {\n                        log.debug(\"Skipping read-only property\");\n                    }\n                    return; // Read-only, skip this property setter\n                }\n                type = (value == null) ? Object.class : value.getClass();\n            } else {\n                if (descriptor.getWriteMethod() == null) {\n                    if (log.isDebugEnabled()) {\n                        log.debug(\"Skipping read-only property\");\n                    }\n                    return; // Read-only, skip this property setter\n                }\n                type = descriptor.getPropertyType();\n            }\n        }\n\n        // Convert the specified value to the required type\n        Object newValue = null;\n        if (type.isArray() && (index < 0)) { // Scalar value into array\n            if (value == null) {\n                String[] values = new String[1];\n                values[0] = null;\n                newValue = getConvertUtils().convert(values, type);\n            } else if (value instanceof String) {\n                newValue = getConvertUtils().convert(value, type);\n            } else if (value instanceof String[]) {\n                newValue = getConvertUtils().convert((String[]) value, type);\n            } else {\n                newValue = convert(value, type);\n            }\n        } else if (type.isArray()) {         // Indexed value into array\n            if (value instanceof String || value == null) {\n                newValue = getConvertUtils().convert((String) value,\n                                                type.getComponentType());\n            } else if (value instanceof String[]) {\n                newValue = getConvertUtils().convert(((String[]) value)[0],\n                                                type.getComponentType());\n            } else {\n                newValue = convert(value, type.getComponentType());\n            }\n        } else {                             // Value into scalar\n            if (value instanceof String) {\n                newValue = getConvertUtils().convert((String) value, type);\n            } else if (value instanceof String[]) {\n                newValue = getConvertUtils().convert(((String[]) value)[0],\n                                                type);\n            } else {\n                newValue = convert(value, type);\n            }\n        }\n\n        // Invoke the setter method\n        try {\n          getPropertyUtils().setProperty(target, name, newValue);\n        } catch (NoSuchMethodException e) {\n            throw new InvocationTargetException\n                (e, \"Cannot set \" + propName);\n        }\n\n    }\n",
         "start_line": 955,
         "end_line": 955,
         "bug_id": "111",
@@ -1078,7 +1078,7 @@
         "bug_inducing_changes": ""
     },
     "112_src/main/java/org/apache/commons/beanutils/locale/BaseLocaleConverter.java": {
-        "context": "",
+        "context": "    private static <T> T checkConversionResult(Class<T> type, Object result) {\n        if (type == null) {\n            // in this case we cannot do much; the result object is returned\n            @SuppressWarnings(\"unchecked\")\n            T temp = (T) result;\n            return temp;\n        }\n        if (type.isInstance(result)) {\n            return type.cast(result);\n        }\n        throw new ConversionException(\"Unsupported target type: \" + type);\n    }\n}\n",
         "start_line": 284,
         "end_line": 284,
         "bug_id": "112",
@@ -1092,7 +1092,7 @@
         "bug_inducing_changes": ""
     },
     "113_src/main/java/com/alibaba/fastjson/parser/JSONLexerBase.java": {
-        "context": "",
+        "context": "    public final float scanFieldFloat(char[] fieldName) {\n        matchStat = UNKNOWN;\n\n        if (!charArrayCompare(fieldName)) {\n            matchStat = NOT_MATCH_NAME;\n            return 0;\n        }\n\n        int offset = fieldName.length;\n        char chLocal = charAt(bp + (offset++));\n\n        final boolean quote = chLocal == '\"';\n        if (quote) {\n            chLocal = charAt(bp + (offset++));\n        }\n\n        boolean negative = chLocal == '-';\n        if (negative) {\n            chLocal = charAt(bp + (offset++));\n        }\n\n        float value;\n        if (chLocal >= '0' && chLocal <= '9') {\n            long intVal = chLocal - '0';\n            for (;;) {\n                chLocal = charAt(bp + (offset++));\n                if (chLocal >= '0' && chLocal <= '9') {\n                    intVal = intVal * 10 + (chLocal - '0');\n                    continue;\n                } else {\n                    break;\n                }\n            }\n\n            int power = 1;\n            boolean small = (chLocal == '.');\n            if (small) {\n                chLocal = charAt(bp + (offset++));\n                if (chLocal >= '0' && chLocal <= '9') {\n                    intVal = intVal * 10 + (chLocal - '0');\n                    power = 10;\n                    for (;;) {\n                        chLocal = charAt(bp + (offset++));\n                        if (chLocal >= '0' && chLocal <= '9') {\n                            intVal = intVal * 10 + (chLocal - '0');\n                            power *= 10;\n                            continue;\n                        } else {\n                            break;\n                        }\n                    }\n                } else {\n                    matchStat = NOT_MATCH;\n                    return 0;\n                }\n            }\n\n            boolean exp = chLocal == 'e' || chLocal == 'E';\n            if (exp) {\n                chLocal = charAt(bp + (offset++));\n                if (chLocal == '+' || chLocal == '-') {\n                    chLocal = charAt(bp + (offset++));\n                }\n                for (;;) {\n                    if (chLocal >= '0' && chLocal <= '9') {\n                        chLocal = charAt(bp + (offset++));\n                    } else {\n                        break;\n                    }\n                }\n            }\n\n            int start, count;\n            if (quote) {\n                if (chLocal != '\"') {\n                    matchStat = NOT_MATCH;\n                    return 0;\n                } else {\n                    chLocal = charAt(bp + (offset++));\n                }\n                start = bp + fieldName.length + 1;\n                count = bp + offset - start - 2;\n            } else {\n                start = bp + fieldName.length;\n                count = bp + offset - start - 1;\n            }\n\n            if ((!exp) && count < 17) {\n                value = (float) (((double) intVal) / power);\n                if (negative) {\n                    value = -value;\n                }\n            } else {\n                String text = this.subString(start, count);\n                value = Float.parseFloat(text);\n            }\n        } else if (chLocal == 'n' && charAt(bp + offset) == 'u' && charAt(bp + offset + 1) == 'l' && charAt(bp + offset + 2) == 'l') {\n            matchStat = VALUE_NULL;\n            value = 0;\n            offset += 3;\n            chLocal = charAt(bp + offset++);\n\n            if (quote && chLocal == '\"') {\n                chLocal = charAt(bp + offset++);\n            }\n\n            for (;;) {\n                if (chLocal == ',') {\n                    bp += offset;\n                    this.ch = charAt(bp);\n                    matchStat = VALUE_NULL;\n                    token = JSONToken.COMMA;\n                    return value;\n                } else if (chLocal == '}') {\n                    bp += offset;\n                    this.ch = charAt(bp);\n                    matchStat = VALUE_NULL;\n                    token = JSONToken.RBRACE;\n                    return value;\n                } else if (isWhitespace(chLocal)) {\n                    chLocal = charAt(bp + offset++);\n                    continue;\n                }\n                break;\n            }\n            matchStat = NOT_MATCH;\n            return 0;\n        } else {\n            matchStat = NOT_MATCH;\n            return 0;\n        }\n\n        if (chLocal == ',') {\n            bp += offset;\n            this.ch = this.charAt(bp);\n            matchStat = VALUE;\n            token = JSONToken.COMMA;\n            return value;\n        }\n\n        if (chLocal == '}') {\n            chLocal = charAt(bp + (offset++));\n            if (chLocal == ',') {\n                token = JSONToken.COMMA;\n                bp += offset;\n                this.ch = this.charAt(bp);\n            } else if (chLocal == ']') {\n                token = JSONToken.RBRACKET;\n                bp += offset;\n                this.ch = this.charAt(bp);\n            } else if (chLocal == '}') {\n                token = JSONToken.RBRACE;\n                bp += offset;\n                this.ch = this.charAt(bp);\n            } else if (chLocal == EOI) {\n                bp += (offset - 1);\n                token = JSONToken.EOF;\n                ch = EOI;\n            } else {\n                matchStat = NOT_MATCH;\n                return 0;\n            }\n            matchStat = END;\n        } else {\n            matchStat = NOT_MATCH;\n            return 0;\n        }\n\n        return value;\n    }\n",
         "start_line": 2503,
         "end_line": 2504,
         "bug_id": "113",
@@ -1106,7 +1106,7 @@
         "bug_inducing_changes": ""
     },
     "114_src/main/java/org/apache/commons/compress/archivers/tar/TarUtils.java": {
-        "context": "",
+        "context": "    public static long parseOctal(final byte[] buffer, final int offset, final int length) {\n        long    result = 0;\n        int     end = offset + length;\n        int     start = offset;\n\n        if (length < 2){\n            throw new IllegalArgumentException(\"Length \"+length+\" must be at least 2\");\n        }\n\n        if (buffer[start] == 0) {\n            return 0L;\n        }\n\n        // Skip leading spaces\n        while (start < end){\n            if (buffer[start] == ' '){\n                start++;\n            } else {\n                break;\n            }\n        }\n\n        // Trim all trailing NULs and spaces.\n        // The ustar and POSIX tar specs require a trailing NUL or\n        // space but some implementations use the extra digit for big\n        // sizes/uids/gids ...\n        byte trailer = buffer[end - 1];\n        while (start < end && (trailer == 0 || trailer == ' ')) {\n            end--;\n            trailer = buffer[end - 1];\n        }\n\n        for ( ;start < end; start++) {\n            final byte currentByte = buffer[start];\n            if (currentByte == 0) {\n                // some archivers don't pad the whole field but just insert a NUL\n                // COMPRESS-301\n                break;\n            }\n            // CheckStyle:MagicNumber OFF\n            if (currentByte < '0' || currentByte > '7'){\n                throw new IllegalArgumentException(\n                        exceptionMessage(buffer, offset, length, start, currentByte));\n            }\n            result = (result << 3) + (currentByte - '0'); // convert from ASCII\n            // CheckStyle:MagicNumber ON\n        }\n\n        return result;\n    }\n",
         "start_line": 135,
         "end_line": 140,
         "bug_id": "114",
@@ -1120,7 +1120,7 @@
         "bug_inducing_changes": ""
     },
     "115_src/main/java/org/apache/commons/lang3/reflect/MemberUtils.java": {
-        "context": "",
+        "context": "    private static boolean isMatchingExecutable(final Executable method, final Class<?>[] parameterTypes) {\n        final Class<?>[] methodParameterTypes = method.getParameterTypes();\n        if (method.isVarArgs()) {\n            int i;\n            for (i = 0; i < methodParameterTypes.length - 1 && i < parameterTypes.length; i++) {\n                if (!ClassUtils.isAssignable(parameterTypes[i], methodParameterTypes[i], true)) {\n                    return false;\n                }\n            }\n            final Class<?> varArgParameterType = methodParameterTypes[methodParameterTypes.length - 1].getComponentType();\n            for (; i < parameterTypes.length; i++) {\n                if (!ClassUtils.isAssignable(parameterTypes[i], varArgParameterType, true)) {\n                    return false;\n                }\n            }\n            return true;\n        }\n        return ClassUtils.isAssignable(parameterTypes, methodParameterTypes, true);\n    }\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "115",
@@ -1134,7 +1134,7 @@
         "bug_inducing_changes": ""
     },
     "117_gson/src/main/java/com/google/gson/internal/bind/JsonTreeReader.java": {
-        "context": "",
+        "context": "  @Override public void skipValue() throws IOException {\n    if (peek() == JsonToken.NAME) {\n      nextName();\n      pathNames[stackSize - 2] = \"null\";\n    } else {\n      popStack();\n      pathNames[stackSize - 1] = \"null\";\n    }\n    pathIndices[stackSize - 1]++;\n  }\n\n  @Override public String toString() {\n    return getClass().getSimpleName();\n  }\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "117",
@@ -1148,7 +1148,7 @@
         "bug_inducing_changes": ""
     },
     "118_gson/src/main/java/com/google/gson/internal/bind/JsonAdapterAnnotationTypeAdapterFactory.java": {
-        "context": "",
+        "context": "  @SuppressWarnings(\"unchecked\") // Casts guarded by conditionals.\n  static TypeAdapter<?> getTypeAdapter(ConstructorConstructor constructorConstructor, Gson gson,\n      TypeToken<?> fieldType, JsonAdapter annotation) {\n    Class<?> value = annotation.value();\n    final TypeAdapter<?> typeAdapter;\n    if (TypeAdapter.class.isAssignableFrom(value)) {\n      Class<TypeAdapter<?>> typeAdapterClass = (Class<TypeAdapter<?>>) value;\n      typeAdapter = constructorConstructor.get(TypeToken.get(typeAdapterClass)).construct();\n    } else if (TypeAdapterFactory.class.isAssignableFrom(value)) {\n      Class<TypeAdapterFactory> typeAdapterFactory = (Class<TypeAdapterFactory>) value;\n      typeAdapter = constructorConstructor.get(TypeToken.get(typeAdapterFactory))\n          .construct()\n          .create(gson, fieldType);\n    } else {\n      throw new IllegalArgumentException(\n          \"@JsonAdapter value must be TypeAdapter or TypeAdapterFactory reference.\");\n    }\n\n    return typeAdapter.nullSafe();\n  }\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "118",
@@ -1162,7 +1162,7 @@
         "bug_inducing_changes": ""
     },
     "120_src/main/java/org/jsoup/select/Elements.java": {
-        "context": "",
+        "context": "    public List<FormElement> forms() {\n        return nodesOfType(FormElement.class);\n    }\n\n    /**\n     * Get {@link Comment} nodes that are direct child nodes of the selected elements.\n     * @return Comment nodes, or an empty list if none.\n",
         "start_line": 641,
         "end_line": 642,
         "bug_id": "120",
@@ -1176,7 +1176,7 @@
         "bug_inducing_changes": ""
     },
     "121_src/main/java/org/jsoup/nodes/Attributes.java": {
-        "context": "",
+        "context": "    final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n        final int sz = size;\n        for (int i = 0; i < sz; i++) {\n            // inlined from Attribute.html()\n            final String key = keys[i];\n            final String val = vals[i];\n            accum.append(' ').append(key);\n\n            // collapse checked=null, checked=\"\", checked=checked; write out others\n            if (!(out.syntax() == Document.OutputSettings.Syntax.html\n                && (val == null || val.equals(key) && Attribute.isBooleanAttribute(key)))) {\n\n                accum.append(\"=\\\"\");\n                Entities.escape(accum, val == null ? EmptyString : val, out, true, false, false);\n                accum.append('\"');\n            }\n        }\n",
         "start_line": 319,
         "end_line": 322,
         "bug_id": "121",
@@ -1190,7 +1190,7 @@
         "bug_inducing_changes": ""
     },
     "122_src/main/java/org/apache/commons/jexl3/internal/introspection/Uberspect.java": {
-        "context": "",
+        "context": "    @Override\n    public JexlPropertyGet getPropertyGet(\n            final List<PropertyResolver> resolvers, final Object obj, final Object identifier\n    ) {\n        final Class<?> claz = obj.getClass();\n        final String property = AbstractExecutor.castString(identifier);\n        final Introspector is = base();\n        final List<PropertyResolver> r = resolvers == null? strategy.apply(null, obj) : resolvers;\n        JexlPropertyGet executor = null;\n        for (PropertyResolver resolver : r) {\n            if (resolver instanceof JexlResolver) {\n                switch ((JexlResolver) resolver) {\n                    case PROPERTY:\n                        // first try for a getFoo() type of property (also getfoo() )\n                        executor = PropertyGetExecutor.discover(is, claz, property);\n                        if (executor == null) {\n                            executor = BooleanGetExecutor.discover(is, claz, property);\n                        }\n                        break;\n                    case MAP:\n                        // let's see if we are a map...\n                        executor = MapGetExecutor.discover(is, claz, identifier);\n                        break;\n                    case LIST:\n                        // let's see if this is a list or array\n                        Integer index = AbstractExecutor.castInteger(identifier);\n                        if (index != null) {\n                            executor = ListGetExecutor.discover(is, claz, index);\n                        }\n                        break;\n                    case DUCK:\n                        // if that didn't work, look for get(foo)\n                        executor = DuckGetExecutor.discover(is, claz, identifier);\n                        if (executor == null && property != null && property != identifier) {\n                            // look for get(\"foo\") if we did not try yet (just above)\n                            executor = DuckGetExecutor.discover(is, claz, property);\n                        }\n                        break;\n                    case FIELD:\n                        // a field may be? (can not be a number)\n                        executor = FieldGetExecutor.discover(is, claz, property);\n                        break;\n                    case CONTAINER:\n                        // or an indexed property?\n                        executor = IndexedType.discover(is, obj, property);\n                        break;\n                    default:\n                        continue; // in case we add new ones in enum\n                }\n            } else {\n                executor = resolver.getPropertyGet(this, obj, identifier);\n            }\n            if (executor != null) {\n                return executor;\n            }\n        }\n        return null;\n    }\n",
         "start_line": 290,
         "end_line": 290,
         "bug_id": "122",
@@ -1204,7 +1204,7 @@
         "bug_inducing_changes": ""
     },
     "123_src/main/java/io/reactiverse/pgclient/impl/PgPoolImpl.java": {
-        "context": "",
+        "context": "        @Override\n        protected void onFailure(Throwable cause) {\n          cmd.fail(cause);\n        }\n",
         "start_line": 103,
         "end_line": 103,
         "bug_id": "123",
@@ -1218,7 +1218,7 @@
         "bug_inducing_changes": ""
     },
     "124_src/main/java/org/apache/commons/jexl3/internal/Interpreter.java": {
-        "context": "",
+        "context": "    @Override\n    protected Object visit(ASTReference node, Object data) {\n        if (isCancelled()) {\n            throw new JexlException.Cancel(node);\n        }\n        final int numChildren = node.jjtGetNumChildren();\n        JexlNode parent = node.jjtGetParent();\n        // pass first piece of data in and loop through children\n        Object object = null;\n        JexlNode objectNode;\n        StringBuilder ant = null;\n        boolean antish = !(parent instanceof ASTReference);\n        int v = 1;\n        main:\n        for (int c = 0; c < numChildren; c++) {\n            objectNode = node.jjtGetChild(c);\n            if (objectNode instanceof ASTMethodNode && object == null) {\n                break;\n            }\n            // attempt to evaluate the property within the object (visit(ASTIdentifierAccess node))\n            object = objectNode.jjtAccept(this, object);\n            if (object != null) {\n                // disallow mixing antish variable & bean with same root; avoid ambiguity\n                antish = false;\n            } else if (antish) {  // if we still have a null object, check for an antish variable\n                if (ant == null) {\n                    JexlNode first = node.jjtGetChild(0);\n                    if (first instanceof ASTIdentifier && ((ASTIdentifier) first).getSymbol() < 0) {\n                        ant = new StringBuilder(((ASTIdentifier) first).getName());\n                    } else {\n                        break;\n                    }\n                }\n                for (; v <= c; ++v) {\n                    JexlNode child = node.jjtGetChild(v);\n                    if (child instanceof ASTIdentifierAccess) {\n                        ant.append('.');\n                        ant.append(((ASTIdentifierAccess) objectNode).getName());\n                    } else {\n                        break;\n                    }\n                }\n                object = context.get(ant.toString());\n            } else {\n                break;\n            }\n        }\n        if (object == null && antish && ant != null && !isTernaryProtected(node)) {\n            boolean undefined = !(context.has(ant.toString()) || isLocalVariable(node, 0));\n            // variable unknown in context and not a local\n            return unsolvableVariable(node, ant.toString(), undefined);\n        }\n        return object;\n    }\n",
         "start_line": 1129,
         "end_line": 1131,
         "bug_id": "124",
@@ -1232,7 +1232,7 @@
         "bug_inducing_changes": ""
     },
     "125_src/main/java/com/univocity/parsers/common/DefaultConversionProcessor.java": {
-        "context": "",
+        "context": "\tprotected void initializeConversions(String[] row, Context context) {\n\t\tconversionsInitialized = true;\n\n\t\tthis.fieldIndexes = null;\n\t\tthis.fieldsReordered = false;\n\t\tthis.conversionsInitialized = false;\n\n\t\tString[] contextHeaders = context == null ? null : context.headers();\n\t\tif (contextHeaders != null && contextHeaders.length > 0) {\n\t\t\tconversions.prepareExecution(false, contextHeaders);\n\t\t} else {\n\t\t\tconversions.prepareExecution(false, row);\n\t\t}\n\t\tif (context != null) {\n\t\t\tthis.fieldIndexes = context.extractedFieldIndexes();\n\t\t\tthis.fieldsReordered = context.columnsReordered();\n\t\t}\n\t}\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "125",
@@ -1245,8 +1245,8 @@
         "bic_commit_message": "",
         "bug_inducing_changes": ""
     },
-    "126_src/main/java/com/univocity/parsers/common/DefaultConversionProcessor.java": {
-        "context": "",
+    "126_src/main/java/org/cactoos/func/RepeatedFunc.java": {
+        "context": "    @Override\n    public Y apply(final X input) throws Exception {\n        if (this.times <= 0) {\n            throw new IllegalArgumentException(\n                \"The number of repetitions must be at least 1\"\n            );\n        }\n        Y result = null;\n        for (int idx = 0; idx < this.times; ++idx) {\n            result = this.func.apply(input);\n        }\n        final Y rslt = result;\n        return new Scalar.NoNulls<Y>(()->rslt).value();\n    }\n",
         "start_line": 87,
         "end_line": 89,
         "bug_id": "126",
@@ -1260,7 +1260,7 @@
         "bug_inducing_changes": ""
     },
     "127_src/main/java/org/tynamo/security/services/SecurityModule.java": {
-        "context": "",
+        "context": "\t@SuppressWarnings({ \"rawtypes\", \"unchecked\" })\n\tpublic static RememberMeManager buildRememberMeManager(Serializer serializer, Logger logger,\n\t\t@Symbol(SymbolConstants.HMAC_PASSPHRASE) String hmacPassphrase,\n\t\t@Symbol(SecuritySymbols.REMEMBERME_CIPHERKERY) String rememberMeCipherKey) throws UnsupportedEncodingException {\n\t\tCookieRememberMeManager rememberMeManager = new CookieRememberMeManager();\n\t\t// the default Shiro serializer produces obnoxiously long cookies\n\t\trememberMeManager.setSerializer(serializer);\n\t\tString cipherKey = rememberMeCipherKey;\n\t\tif (cipherKey.isEmpty()) {\n\t\t\tif (hmacPassphrase.isEmpty()) {\n\t\t\t\tlogger\n\t\t\t\t\t.error(\"Neither symbol '\"\n\t\t\t\t\t\t+ SecuritySymbols.REMEMBERME_CIPHERKERY\n\t\t\t\t\t\t+ \"' nor  '\"\n\t\t\t\t\t\t+ SymbolConstants.HMAC_PASSPHRASE\n\t\t\t\t\t\t+ \"' is set. Using a random value as the cipher key for encrypting rememberMe information. Cookies will be invalidated when the JVM is restarted\");\n\t\t\t\treturn rememberMeManager;\n\t\t\t}\n\n\t\t\tlogger.warn(\"Symbol '\" + SecuritySymbols.REMEMBERME_CIPHERKERY + \"' is not set, using '\"\n\t\t\t\t+ SymbolConstants.HMAC_PASSPHRASE\n\t\t\t\t+ \"' as the cipher. Beware that changing the value will invalidate rememberMe cookies\");\n\t\t\tcipherKey = hmacPassphrase;\n\t\t}\n\t\trememberMeManager.setCipherKey(cipherKey.getBytes(\"UTF-8\"));\n\t\treturn rememberMeManager;\n\t}\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "127",
@@ -1274,7 +1274,7 @@
         "bug_inducing_changes": ""
     },
     "128_src/main/java/org/springframework/hateoas/mvc/ControllerLinkBuilder.java": {
-        "context": "",
+        "context": "\tstatic UriComponentsBuilder getBuilder() {\n\n\t\tHttpServletRequest request = getCurrentRequest();\n\t\tUriComponentsBuilder builder = UriComponentsBuilder.fromHttpRequest(new ServletServerHttpRequest(request));\n\n\t\t// special case handling for X-Forwarded-Ssl:\n\t\t// apply it, but only if X-Forwarded-Proto is unset.\n\n\t\tString forwardedSsl = request.getHeader(\"X-Forwarded-Ssl\");\n\t\tForwardedHeader forwarded = ForwardedHeader.of(request.getHeader(ForwardedHeader.NAME));\n\t\tString proto = hasText(forwarded.getProto()) ? forwarded.getProto() : request.getHeader(\"X-Forwarded-Proto\");\n\n\t\tif (!hasText(proto) && hasText(forwardedSsl) && forwardedSsl.equalsIgnoreCase(\"on\")) {\n\t\t\tbuilder.scheme(\"https\");\n\t\t}\n\n\t\treturn builder;\n\t}\n",
         "start_line": 267,
         "end_line": 268,
         "bug_id": "128",
@@ -1288,7 +1288,7 @@
         "bug_inducing_changes": ""
     },
     "129_spring-data-rest-webmvc/src/main/java/org/springframework/data/rest/webmvc/config/RepositoryRestMvcConfiguration.java": {
-        "context": "",
+        "context": "\tpublic RepositoryRestMvcConfiguration( //\n\t\t\tApplicationContext context, //\n\t\t\t@Qualifier(\"mvcConversionService\") ObjectFactory<ConversionService> conversionService, //\n\t\t\tObjectProvider<LinkRelationProvider> relProvider, //\n\t\t\tObjectProvider<CurieProvider> curieProvider, //\n\t\t\tObjectProvider<HalConfiguration> halConfiguration, //\n\t\t\tObjectProvider<ObjectMapper> objectMapper, //\n\t\t\tObjectProvider<RepresentationModelProcessorInvoker> invoker, //\n\t\t\tObjectProvider<MessageResolver> resolver, //\n\t\t\tObjectProvider<GeoModule> geoModule, //\n\t\t\tObjectProvider<PathPatternParser> parser) {\n\n\t\tsuper(context, conversionService);\n\n\t\tthis.relProvider = relProvider;\n\t\tthis.curieProvider = curieProvider;\n\t\tthis.halConfiguration = halConfiguration;\n\t\tthis.objectMapper = objectMapper;\n\t\tthis.invoker = invoker;\n\t\tthis.resolver = resolver;\n\t\tthis.geoModule = geoModule;\n\t\tthis.parser = parser;\n\n\t\tthis.mapper = Lazy.of(() -> {\n\n\t\t\tJdk8Module jdk8Module = new Jdk8Module();\n\t\t\tjdk8Module.configureAbsentsAsNulls(true);\n\n\t\t\tObjectMapper mapper = basicObjectMapper();\n\n\t\t\tLinkCollector linkCollector = context.getBean(LinkCollector.class);\n\n\t\t\tmapper.registerModule(persistentEntityJackson2Module(linkCollector));\n\t\t\tmapper.registerModule(jdk8Module);\n\n\t\t\treturn mapper;\n\t\t});\n\n\t\tthis.selfLinkProvider = Lazy.of(() -> context.getBean(SelfLinkProvider.class));\n\t\tthis.persistentEntityArgumentResolver = Lazy\n\t\t\t\t.of(() -> context.getBean(PersistentEntityResourceHandlerMethodArgumentResolver.class));\n\t\tthis.repoRequestArgumentResolver = Lazy\n\t\t\t\t.of(() -> context.getBean(RootResourceInformationHandlerMethodArgumentResolver.class));\n\t\tthis.baseUri = Lazy.of(() -> context.getBean(BaseUri.class));\n\t\tthis.resourceMappings = Lazy.of(() -> context.getBean(RepositoryResourceMappings.class));\n\t\tthis.repositories = Lazy.of(() -> context.getBean(Repositories.class));\n\t\tthis.resourceMetadataHandlerMethodArgumentResolver = Lazy\n\t\t\t\t.of(() -> context.getBean(ResourceMetadataHandlerMethodArgumentResolver.class));\n\t\tthis.excerptProjector = Lazy.of(() -> context.getBean(ExcerptProjector.class));\n\t\tthis.persistentEntities = Lazy.of(() -> context.getBean(PersistentEntities.class));\n\t\tthis.backendIdHandlerMethodArgumentResolver = Lazy\n\t\t\t\t.of(() -> context.getBean(BackendIdHandlerMethodArgumentResolver.class));\n\t\tthis.associationLinks = Lazy.of(() -> context.getBean(Associations.class));\n\t\tthis.enumTranslator = Lazy.of(() -> context.getBean(EnumTranslator.class));\n\t\tthis.serverHttpRequestMethodArgumentResolver = Lazy\n\t\t\t\t.of(() -> context.getBean(ServerHttpRequestMethodArgumentResolver.class));\n\t\tthis.eTagArgumentResolver = Lazy.of(() -> context.getBean(ETagArgumentResolver.class));\n\t\tthis.repositoryInvokerFactory = Lazy.of(() -> new UnwrappingRepositoryInvokerFactory(\n\t\t\t\tnew DefaultRepositoryInvokerFactory(repositories.get(), defaultConversionService), getEntityLookups()));\n\n\t\tthis.defaultConversionService = new DefaultFormattingConversionService();\n\n\t\tthis.configurerDelegate = Lazy.of(() -> {\n\t\t\treturn new RepositoryRestConfigurerDelegate(context.getBeansOfType(RepositoryRestConfigurer.class).values());\n\t\t});\n\n\t\tthis.repositoryRestConfiguration = Lazy.of(() -> context.getBean(RepositoryRestConfiguration.class));\n\t\tthis.pageableResolver = Lazy.of(() -> context.getBean(HateoasPageableHandlerMethodArgumentResolver.class));\n\t\tthis.sortResolver = Lazy.of(() -> context.getBean(HateoasSortHandlerMethodArgumentResolver.class));\n\t}\n",
         "start_line": 262,
         "end_line": 263,
         "bug_id": "129",
@@ -1302,7 +1302,7 @@
         "bug_inducing_changes": ""
     },
     "130_src/main/java/org/jongo/query/BsonQueryFactory.java": {
-        "context": "",
+        "context": "    private String addRequiredQuotesAndParameters(String query, Object[] parameters) {\n        StringBuilder result = new StringBuilder(query.length());\n\n        int position = 0;\n        int paramIndex = 0;\n        Stack<Context> ctxStack = new Stack<>(Context.NONE);\n        StringBuilder currentToken = new StringBuilder();\n        String previousToken = \"\";\n        char currentStringStartingQuote = ' ';\n\n        for (char nextChar : query.toCharArray()) {\n            if (ctxStack.peek() == Context.STRING) {\n                currentToken.append(nextChar);\n                if (nextChar == currentStringStartingQuote) {\n                    ctxStack.pop();\n                }\n            } else if (isAQuote(nextChar)) {\n                ctxStack.push(Context.STRING);\n                currentStringStartingQuote = nextChar;\n                currentToken.append(nextChar);\n            } else if (currentTokenWithNextCharIsToken(currentToken, nextChar)) {\n                if (paramIndex >= parameters.length) {\n                    throw new IllegalArgumentException(\"Not enough parameters passed to query: \" + query);\n                }\n                if (\"$oid\".equals(previousToken) ||\n                        !isValueToken(query, position)) {\n                    currentToken = trimAppendParamAndQuote(currentToken, parameters[paramIndex]);\n                } else {\n                    appendParamPlaceholder(result, paramIndex);\n                    currentToken.setLength(0);\n                }\n                paramIndex++;\n            } else if (itIsABsonSpecialChar(nextChar)) {\n                previousToken = specialChar(nextChar).applySpecificBehaviour(result, currentToken, ctxStack, position);\n            } else {\n                currentToken.append(nextChar);\n            }\n\n            position++;\n        }\n\n        if (paramIndex < parameters.length) {\n            throw new IllegalArgumentException(\"Too many parameters passed to query: \" + query);\n        }\n\n        return result.toString().trim();\n    }\n",
         "start_line": 127,
         "end_line": 130,
         "bug_id": "130",
@@ -1316,7 +1316,7 @@
         "bug_inducing_changes": ""
     },
     "131_spring-rabbit/src/main/java/org/springframework/amqp/rabbit/listener/adapter/MessagingMessageListenerAdapter.java": {
-        "context": "",
+        "context": "\t\tprivate Type determineInferredType() {\n\t\t\tif (this.method == null) {\n\t\t\t\treturn null;\n\t\t\t}\n\n\t\t\tType genericParameterType = null;\n\n\t\t\tfor (int i = 0; i < this.method.getParameterCount(); i++) {\n\t\t\t\tMethodParameter methodParameter = new MethodParameter(this.method, i);\n\t\t\t\t/*\n\t\t\t\t * We're looking for a single parameter, or one annotated with @Payload.\n\t\t\t\t * We ignore parameters with type Message because they are not involved with conversion.\n\t\t\t\t */\n\t\t\t\tboolean isHeader = methodParameter.hasParameterAnnotation(Header.class);\n\t\t\t\tboolean isPayload = methodParameter.hasParameterAnnotation(Payload.class);\n\t\t\t\tif (isHeader && isPayload) {\n\t\t\t\t\tif (MessagingMessageListenerAdapter.this.logger.isWarnEnabled()) {\n\t\t\t\t\t\tMessagingMessageListenerAdapter.this.logger.warn(this.method.getName()\n\t\t\t\t\t\t\t+ \": Cannot annotate a parameter with both @Header and @Payload; \"\n\t\t\t\t\t\t\t+ \"ignored for payload conversion\");\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tif (isEligibleParameter(methodParameter)\n\t\t\t\t\t\t&& (!isHeader || isPayload) && !(isHeader && isPayload)) {\n\n\t\t\t\t\tif (genericParameterType == null) {\n\t\t\t\t\t\tgenericParameterType = extractGenericParameterTypFromMethodParameter(methodParameter);\n\t\t\t\t\t}\n\t\t\t\t\telse {\n\t\t\t\t\t\tif (MessagingMessageListenerAdapter.this.logger.isDebugEnabled()) {\n\t\t\t\t\t\t\tMessagingMessageListenerAdapter.this.logger\n\t\t\t\t\t\t\t\t\t.debug(\"Ambiguous parameters for target payload for method \" + this.method\n\t\t\t\t\t\t\t\t\t\t\t+ \"; no inferred type header added\");\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn null;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}\n\n\t\t\treturn genericParameterType;\n\t\t}\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "131",
@@ -1330,7 +1330,7 @@
         "bug_inducing_changes": ""
     },
     "134_spring-amqp/src/main/java/org/springframework/amqp/support/converter/DefaultJackson2JavaTypeMapper.java": {
-        "context": "",
+        "context": "\tprivate boolean canConvert(JavaType inferredType) {\n\t\tif (inferredType.isAbstract()) {\n\t\t\treturn false;\n\t\t}\n\t\tif (inferredType.isContainerType() && inferredType.getContentType().isAbstract()) {\n\t\t\treturn false;\n\t\t}\n\t\tif (inferredType.getKeyType() != null && inferredType.getKeyType().isAbstract()) {\n\t\t\treturn false;\n\t\t}\n\t\treturn true;\n\t}\n",
         "start_line": 133,
         "end_line": 134,
         "bug_id": "134",
@@ -1344,7 +1344,7 @@
         "bug_inducing_changes": ""
     },
     "135_src/main/java/jscover/instrument/NodeProcessor.java": {
-        "context": "",
+        "context": "    boolean processNode(AstNode node) {\n\t\t// Function Coverage (HA-CA), tntim96\n        if (includeFunctionCoverage && node instanceof FunctionNode) {\n            AstNode block = ((FunctionNode) node).getBody();\n            if (block instanceof Block) {\n                block.addChildToFront(buildFunctionInstrumentationStatement(functionNumber++));\n            }\n        }\n\n        if (validLines.contains(node.getLineno())) {\n            // Don't add instrumentation if already there\n            return true;\n        }\n\n        if (node.getParent() != null && node.getLineno() == node.getParent().getLineno()) {\n            // Don't add instrumentation if it will be added by parent for the\n            // same line\n            // TODO Need logic to determine if instrumentation will be added to\n            // parent.\n            // return true;\n        }\n\n        AstNode parent = node.getParent();\n        if (parent instanceof ObjectProperty || parent instanceof FunctionCall) {\n            return true;\n        }\n        if (node instanceof ExpressionStatement || node instanceof EmptyExpression || node instanceof Loop\n                || node instanceof ContinueStatement || node instanceof VariableDeclaration || node instanceof SwitchStatement\n                || node instanceof BreakStatement || node instanceof EmptyStatement || node instanceof ThrowStatement) {\n\n            if (node.getLineno() < 1) {\n                //Must be a case expression\n                return true;\n            }\n            if (parent instanceof SwitchCase) {\n                //Don't do anything here. Direct modification of statements will result in concurrent modification exception.\n            } else if (parent instanceof LabeledStatement) {\n                //Don't do anything here.\n            } else if (parent != null) {\n                addInstrumentationBefore(node);\n            }\n        } else if (node instanceof WithStatement) {\n            addInstrumentationBefore(node);\n        } else if (node instanceof SwitchCase) {\n            List<AstNode> statements = ((SwitchCase) node).getStatements();\n            if (statements == null) {\n                return true;\n            }\n            for (int i = statements.size() - 1; i >= 0; i--) {\n                AstNode statement = statements.get(i);\n                statements.add(i, buildInstrumentationStatement(statement.getLineno()));\n            }\n        } else if (node instanceof FunctionNode || node instanceof TryStatement || isDebugStatement(node)) {\n            if (!(parent instanceof InfixExpression) && !(parent instanceof VariableInitializer)\n                    && !(parent instanceof ConditionalExpression) && !(parent instanceof ArrayLiteral)\n                    && !(parent instanceof ParenthesizedExpression)) {\n                addInstrumentationBefore(node);\n            }\n        } else if (node instanceof ReturnStatement) {\n            addInstrumentationBefore(node);\n        } else if (node instanceof VariableDeclaration || node instanceof LetNode) {\n            if (!(parent instanceof LetNode)) {// TODO this is a bit specific\n                parent.addChildBefore(buildInstrumentationStatement(node.getLineno()), node);\n            }\n        } else if (node instanceof Loop) {\n            parent.addChildBefore(buildInstrumentationStatement(node.getLineno()), node);\n        } else if (node instanceof LabeledStatement) {\n            LabeledStatement labeledStatement = (LabeledStatement)node;\n            ExpressionStatement newChild = buildInstrumentationStatement(labeledStatement.getLineno());\n            parent.addChildBefore(newChild, node);\n            if (labeledStatement.getStatement().getType() != Token.BLOCK) {\n                Block block = new Block();\n                block.addStatement(labeledStatement.getStatement());\n                labeledStatement.setStatement(block);\n            }\n        } else if (node instanceof IfStatement) {\n            addInstrumentationBefore(node);\n        }\n        return true;\n    }\n",
         "start_line": 444,
         "end_line": 449,
         "bug_id": "135",
@@ -1358,7 +1358,7 @@
         "bug_inducing_changes": ""
     },
     "136_src/main/java/com/univocity/parsers/common/AbstractWriter.java": {
-        "context": "",
+        "context": "\tprivate <T> void fillOutputRow(T[] row) {\n\t\tif (!columnReorderingEnabled && row.length > outputRow.length) {\n\t\t\toutputRow = Arrays.copyOf(outputRow, row.length);\n\t\t}\n\t\tif (indexesToWrite.length < row.length) {\n\t\t\tfor (int i = 0; i < indexesToWrite.length; i++) {\n\t\t\t\toutputRow[indexesToWrite[i]] = row[indexesToWrite[i]];\n\t\t\t}\n\t\t} else {\n\t\t\tfor (int i = 0; i < row.length && i < indexesToWrite.length; i++) {\n\t\t\t\tif (indexesToWrite[i] != -1) {\n\t\t\t\t\toutputRow[indexesToWrite[i]] = row[i];\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t}\n",
         "start_line": 913,
         "end_line": 914,
         "bug_id": "136",
@@ -1372,7 +1372,7 @@
         "bug_inducing_changes": ""
     },
     "137_src/main/java/com/univocity/parsers/common/AbstractParser.java": {
-        "context": "",
+        "context": "\tprotected void processComment() {\n\t\tif (collectComments) {\n\t\t\tlong line = input.lineCount();\n\t\t\tString comment = input.readComment();\n\t\t\tif (comment != null) {\n\t\t\t\tlastComment = comment;\n\t\t\t\tcomments.put(line, lastComment);\n\t\t\t}\n\t\t} else {\n\t\t\tinput.skipLines(1);\n\t\t}\n\t}\n",
         "start_line": 102,
         "end_line": 103,
         "bug_id": "137",
@@ -1386,7 +1386,7 @@
         "bug_inducing_changes": ""
     },
     "138_src/main/java/com/univocity/parsers/common/processor/core/AbstractBeanConversionProcessor.java": {
-        "context": "",
+        "context": "\tprivate void mapFieldIndexes(Context context, Object[] row, String[] headers, int[] indexes, boolean columnsReordered) {\n\t\tif (headers == null) {\n\t\t\theaders = ArgumentUtils.EMPTY_STRING_ARRAY;\n\t\t}\n\t\tint last = headers.length > row.length ? headers.length : row.length;\n\t\tfor (FieldMapping mapping : parsedFields) {\n\t\t\tint index = mapping.getIndex();\n\t\t\tif (last < index) {\n\t\t\t\tlast = index + 1;\n\t\t\t}\n\t\t}\n\n\t\tFieldMapping[] fieldOrder = new FieldMapping[last];\n\t\tTreeSet<String> fieldsNotFound = new TreeSet<String>();\n\n\t\tfor (FieldMapping mapping : parsedFields) {\n\t\t\tif (mapping.isMappedToField()) {\n\t\t\t\tint index = ArgumentUtils.indexOf(headers, mapping.getFieldName());\n\t\t\t\tif (index == -1) {\n\t\t\t\t\tfieldsNotFound.add(mapping.getFieldName());\n\t\t\t\t\tcontinue;\n\t\t\t\t}\n\t\t\t\tfieldOrder[index] = mapping;\n\t\t\t} else if (mapping.getIndex() < fieldOrder.length) {\n\t\t\t\tfieldOrder[mapping.getIndex()] = mapping;\n\t\t\t}\n\t\t}\n\n\t\tif (context != null && !fieldsNotFound.isEmpty()) { //Trigger this validation only when reading, not writing.\n\t\t\tif (headers.length == 0) {\n\t\t\t\tthrow new DataProcessingException(\"Could not find fields \" + fieldsNotFound.toString() + \" in input. Please enable header extraction in the parser settings in order to match field names.\");\n\t\t\t}\n\t\t\tif (strictHeaderValidationEnabled) {\n\t\t\t\tDataProcessingException exception = new DataProcessingException(\"Could not find fields \" + fieldsNotFound.toString() + \"' in input. Names found: {headers}\");\n\t\t\t\texception.setValue(\"headers\", Arrays.toString(headers));\n\t\t\t\tthrow exception;\n\t\t\t}\n\t\t}\n\n\t\tif (indexes != null) {\n\t\t\t// sets fields not read from CSV to null.\n\t\t\tfor (int i = 0; i < fieldOrder.length; i++) {\n\t\t\t\tboolean isIndexUsed = false;\n\t\t\t\tfor (int j = 0; j < indexes.length; j++) {\n\t\t\t\t\tif (indexes[j] == i) {\n\t\t\t\t\t\tisIndexUsed = true;\n\t\t\t\t\t\tbreak;\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t\tif (!isIndexUsed) {\n\t\t\t\t\tfieldOrder[i] = null;\n\t\t\t\t}\n\t\t\t}\n\n\t\t\t// reorders the fields so they are positioned in the same order as in the incoming row[]\n\t\t\tif (columnsReordered) {\n\t\t\t\tFieldMapping[] newFieldOrder = new FieldMapping[indexes.length];\n\n\t\t\t\tfor (int i = 0; i < indexes.length; i++) {\n\t\t\t\t\tfor (int j = 0; j < fieldOrder.length; j++) {\n\t\t\t\t\t\tint index = indexes[i];\n\t\t\t\t\t\tif (index != -1) {\n\t\t\t\t\t\t\tFieldMapping field = fieldOrder[index];\n\t\t\t\t\t\t\tnewFieldOrder[i] = field;\n\t\t\t\t\t\t}\n\t\t\t\t\t}\n\t\t\t\t}\n\n\t\t\t\tfieldOrder = newFieldOrder;\n\t\t\t}\n\t\t}\n\n\t\treadOrder = fieldOrder;\n\t\tinitializeValuesForMissing();\n\n\t}\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "138",
@@ -1395,12 +1395,12 @@
         "buggy_line": "",
         "buggy_lines": "",
         "method_start_line": 297,
-        "method_end_line": 382,
+        "method_end_line": 373,
         "bic_commit_message": "",
         "bug_inducing_changes": ""
     },
     "139_src/main/java/com/univocity/parsers/common/input/WriterCharAppender.java": {
-        "context": "",
+        "context": "\tprivate void appendAndExpand(char ch) {\n\t\ttry {\n\t\t\tchars[index++] = ch;\n\t\t} catch (ArrayIndexOutOfBoundsException e) {\n\t\t\texpand();\n\t\t\tchars[index] = ch;\n\t\t}\n\t}\n",
         "start_line": 203,
         "end_line": 205,
         "bug_id": "139",
@@ -1413,8 +1413,8 @@
         "bic_commit_message": "",
         "bug_inducing_changes": ""
     },
-    "140_src/main/java/com/univocity/parsers/common/input/WriterCharAppender.java": {
-        "context": "",
+    "140_src/main/java/org/scijava/command/CommandInfo.java": {
+        "context": "\tprivate void checkFields(final Class<?> type) {\n\t\tif (type == null) return;\n\n\t\t// NB: Reject abstract classes.\n\t\tif (Modifier.isAbstract(type.getModifiers())) {\n\t\t\tproblems.add(new ValidityProblem(\"Delegate class is abstract\"));\n\t\t}\n\n\t\tfinal List<Field> fields =\n\t\t\tClassUtils.getAnnotatedFields(type, Parameter.class);\n\n\t\tfor (final Field f : fields) {\n\t\t\tf.setAccessible(true); // expose private fields\n\n\t\t\tfinal Parameter param = f.getAnnotation(Parameter.class);\n\n\t\t\tboolean valid = true;\n\n\t\t\tfinal boolean isFinal = Modifier.isFinal(f.getModifiers());\n\t\t\tfinal boolean isMessage = param.visibility() == ItemVisibility.MESSAGE;\n\t\t\tif (isFinal && !isMessage) {\n\t\t\t\t// NB: Final parameters are bad because they cannot be modified.\n\t\t\t\tfinal String error = \"Invalid final parameter: \" + f;\n\t\t\t\tproblems.add(new ValidityProblem(error));\n\t\t\t\tvalid = false;\n\t\t\t}\n\n\t\t\tfinal String name = f.getName();\n\t\t\tif (inputMap.containsKey(name) || outputMap.containsKey(name)) {\n\t\t\t\t// NB: Shadowed parameters are bad because they are ambiguous.\n\t\t\t\tfinal String error = \"Invalid duplicate parameter: \" + f;\n\t\t\t\tproblems.add(new ValidityProblem(error));\n\t\t\t\tvalid = false;\n\t\t\t}\n\n\t\t\tif (param.type() == ItemIO.BOTH && isImmutable(f.getType())) {\n\t\t\t\t// NB: The BOTH type signifies that the parameter will be changed\n\t\t\t\t// in-place somehow. But immutable parameters cannot be changed in\n\t\t\t\t// such a manner, so it makes no sense to label them as BOTH.\n\t\t\t\tfinal String error = \"Immutable BOTH parameter: \" + f;\n\t\t\t\tproblems.add(new ValidityProblem(error));\n\t\t\t\tvalid = false;\n\t\t\t}\n\n\t\t\tif (!valid) {\n\t\t\t\t// NB: Skip invalid parameters.\n\t\t\t\tcontinue;\n\t\t\t}\n\n\t\t\tfinal boolean isPreset = presets.containsKey(name);\n\n\t\t\t// add item to the relevant list (inputs or outputs)\n\t\t\tfinal CommandModuleItem<Object> item =\n\t\t\t\tnew CommandModuleItem<>(this, f);\n\t\t\tif (item.isInput()) {\n\t\t\t\tinputMap.put(name, item);\n\t\t\t\tif (!isPreset) inputList.add(item);\n\t\t\t}\n\t\t\tif (item.isOutput()) {\n\t\t\t\toutputMap.put(name, item);\n\t\t\t\tif (!isPreset) outputList.add(item);\n\t\t\t}\n\t\t}\n\t}\n",
         "start_line": 463,
         "end_line": 464,
         "bug_id": "140",
@@ -1428,21 +1428,21 @@
         "bug_inducing_changes": ""
     },
     "143_src/main/java/org/scijava/command/CommandModuleItem.java": {
-        "context": "",
-        "start_line": 463,
-        "end_line": 464,
+        "context": "\t@Override\n\tpublic Number getStepSize() {\n\t\treturn tValue(getParameter().stepSize(), Number.class);\n\t}\n",
+        "start_line": 148,
+        "end_line": 149,
         "bug_id": "143",
         "before": "",
         "after": "",
         "buggy_line": "",
         "buggy_lines": "",
-        "method_start_line": 435,
-        "method_end_line": 499,
+        "method_start_line": 146,
+        "method_end_line": 150,
         "bic_commit_message": "",
         "bug_inducing_changes": ""
     },
     "144_src/main/java/io/github/bonigarcia/wdm/WebDriverManager.java": {
-        "context": "",
+        "context": "    protected static final Logger log = getLogger(lookup().lookupClass());\n\n    protected static final String SLASH = \"/\";\n    protected static final String DASH = \"-\";\n    protected static final String LATEST_RELEASE = \"LATEST_RELEASE\";\n    protected static final String CFT_LABEL = \"chrome-for-testing\";\n    protected static final NamespaceContext S3_NAMESPACE_CONTEXT = new S3NamespaceContext();\n    protected static final String IN_DOCKER = \"-in-docker\";\n    protected static final String CLI_SERVER = \"server\";\n    protected static final String CLI_RESOLVER = \"resolveDriverFor\";\n    protected static final String CLI_DOCKER = \"runInDocker\";\n    protected static final String BROWSER_WATCHER_ID = \"kbnnckbeejhjlljpgelfponodpecfapp\";\n",
         "start_line": 167,
         "end_line": 168,
         "bug_id": "144",
@@ -1456,7 +1456,7 @@
         "bug_inducing_changes": ""
     },
     "145_src/main/java/com/github/pagehelper/parser/SqlServerParser.java": {
-        "context": "",
+        "context": "    public String convertToPageSql(String sql, Integer offset, Integer limit) {\n        //\u89e3\u6790SQL\n        Statement stmt;\n        try {\n            stmt = jSqlParser.parse(sql);\n        } catch (Throwable e) {\n            throw new PageException(\"\u4e0d\u652f\u6301\u8be5SQL\u8f6c\u6362\u4e3a\u5206\u9875\u67e5\u8be2!\", e);\n        }\n        if (!(stmt instanceof Select)) {\n            throw new PageException(\"\u5206\u9875\u8bed\u53e5\u5fc5\u987b\u662fSelect\u67e5\u8be2!\");\n        }\n        //\u83b7\u53d6\u5206\u9875\u67e5\u8be2\u7684select\n        Select pageSelect = getPageSelect((Select) stmt);\n        String pageSql = pageSelect.toString();\n        //\u7f13\u5b58\u79fb\u5230\u5916\u9762\u4e86\uff0c\u6240\u4ee5\u4e0d\u66ff\u6362\u53c2\u6570\n        if (offset != null) {\n            pageSql = pageSql.replace(START_ROW, String.valueOf(offset));\n        }\n        if (limit != null) {\n            pageSql = pageSql.replace(PAGE_SIZE, String.valueOf(limit));\n        }\n        return pageSql;\n    }\n",
         "start_line": 114,
         "end_line": 115,
         "bug_id": "145",
@@ -1469,8 +1469,8 @@
         "bic_commit_message": "",
         "bug_inducing_changes": ""
     },
-    "146_src/main/java/com/github/pagehelper/parser/SqlServerParser.java": {
-        "context": "",
+    "146_src/main/java/com/amihaiemil/eoyaml/extensions/MergedYamlMapping.java": {
+        "context": "    private YamlMapping recursiveMerge(\n        final YamlMapping original,\n        final YamlMapping changed,\n        final boolean overrideConflicts\n    ) {\n        YamlMappingBuilder originalBuilder = this\n            .yamlMappingBuilderFrom(original);\n        final Set<YamlNode> changedKeys = changed.keys();\n        for(final YamlNode key : changedKeys) {\n            final YamlNode originalValue = original.value(key);\n            final YamlNode changedValue = changed.value(key);\n            if (changedValue instanceof YamlMapping\n                && originalValue instanceof YamlMapping) {\n                originalBuilder = originalBuilder.add(\n                    key,\n                    this.recursiveMerge(\n                        (YamlMapping) originalValue,\n                        (YamlMapping) changedValue,\n                        overrideConflicts\n                    )\n                );\n            } else if(overrideConflicts\n                && changedValue instanceof YamlSequence\n                && originalValue instanceof YamlSequence){\n                final YamlSequence originalSeq = (YamlSequence) originalValue;\n                final YamlSequence changedSeq = (YamlSequence) changedValue;\n                YamlSequenceBuilder originalSeqBuilder = this\n                    .yamlSequenceBuilderFrom(originalSeq);\n                for (final YamlNode node : changedSeq.values()) {\n                    if (!originalSeq.values().contains(node)) {\n                        originalSeqBuilder = originalSeqBuilder.add(node);\n                    }\n                }\n                originalBuilder = originalBuilder.add(\n                    key,\n                    originalSeqBuilder.build(originalSeq.comment().value())\n                );\n            } else {\n                final YamlNode newValue;\n                if (originalValue != null) {\n                    if (overrideConflicts) {\n                        newValue = changedValue;\n                    } else {\n                        newValue = originalValue;\n                    }\n                } else {\n                    newValue = changedValue;\n                }\n                originalBuilder = originalBuilder.add(key, newValue);\n            }\n        }\n        return originalBuilder.build(original.comment().value());\n    }\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "146",
@@ -1484,7 +1484,7 @@
         "bug_inducing_changes": ""
     },
     "147_src/main/java/inra/ijpb/measure/region2d/AverageThickness.java": {
-        "context": "",
+        "context": "    @Override\n    public AverageThickness.Result[] analyzeRegions(ImageProcessor image, int[] labels,\n            Calibration calib)\n    {\n        // check input validity\n        if (calib.pixelWidth != calib.pixelHeight)\n        {\n            throw new IllegalArgumentException(\"Requires input image to have square pixels (width = height)\");\n        }\n        \n        Map<Integer, Integer> labelIndices = LabelImages.mapLabelIndices(labels);\n\n        // first compute distance map of each label\n        ImageProcessor distanceMap = LabelImages.distanceMap(image);\n\n        // Compute skeleton of each region.\n        ImageProcessor skeleton = BinaryImages.skeleton(image); \n        \n        // allocate memory for result values\n        int nLabels = labels.length;\n        double[] sums = new double[nLabels];\n        int[] counts = new int[nLabels];\n\n        // Iterate over skeleton pixels\n        int sizeX = image.getWidth();\n        int sizeY = image.getHeight();\n        for (int y = 0; y < sizeY; y++)\n        {\n            for (int x = 0; x < sizeX; x++)\n            {\n                // label of current pixel\n                int label = (int) skeleton.getf(x, y);\n                \n                // do not process background pixels\n                if (label == 0)\n                {\n                    continue;\n                }\n                // do not process labels not in the list\n                if (labelIndices.containsKey(label))\n                {\n                    continue;\n                }\n\n                int index = labelIndices.get(label);\n                \n                // update results for current region\n                sums[index] += distanceMap.getf(x, y);\n                counts[index]++;\n            }\n        }\n",
         "start_line": 123,
         "end_line": 124,
         "bug_id": "147",
@@ -1498,7 +1498,7 @@
         "bug_inducing_changes": ""
     },
     "148_src/main/java/com/onarandombox/MultiverseCore/utils/FileUtils.java": {
-        "context": "",
+        "context": "    public static boolean copyFolder(File source, File target, Logger log) {\n        Path sourcePath = source.toPath();\n        Path destPath = target.toPath();\n        try (Stream<Path> files = Files.walk(source.toPath())) {\n            files.forEachOrdered(src -> {\n                try {\n                    Files.copy(src, sourcePath.resolve(destPath.relativize(src)));\n                } catch (IOException e) {\n                    log.warning(e.getMessage());\n                }\n            });\n            return true;\n        } catch (IOException e) {\n            log.warning(e.getMessage());\n            return false;\n        }\n    }\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "148",
@@ -1506,13 +1506,13 @@
         "after": "",
         "buggy_line": "",
         "buggy_lines": "",
-        "method_start_line": 84,
-        "method_end_line": 135,
+        "method_start_line": 71,
+        "method_end_line": 88,
         "bic_commit_message": "",
         "bug_inducing_changes": ""
     },
     "150_src/main/java/au/edu/wehi/idsv/AssemblyEvidenceSource.java": {
-        "context": "",
+        "context": "\t@Override\n\tpublic int getMinConcordantFragmentSize() {\n\t\tint minSourceFragSize = source.stream().mapToInt(s -> s.getMinConcordantFragmentSize()).max().orElse(0);\n\t\tif (getFile().exists()) {\n\t\t\tminSourceFragSize = Math.max(super.getMaxConcordantFragmentSize(), minSourceFragSize);\n\t\t}\n\t\treturn minSourceFragSize;\n\t}\n",
         "start_line": 0,
         "end_line": 0,
         "bug_id": "150",
