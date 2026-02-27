@@ -206,7 +206,7 @@ class RegMiner4APR(AbstractBenchmark):
 
         # Get compile result
         cmd = "cd " + validation_dir + ";"
-        cmd += 'export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 && export PATH=$JAVA_HOME/bin:$PATH && regminer4apr compile' # Compile the program
+        cmd += 'regminer4apr compile' # Compile the program
 
         command_result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         result_message = command_result.stdout.decode('utf-8')
@@ -223,7 +223,7 @@ class RegMiner4APR(AbstractBenchmark):
         if not compile_error_flag:
             # Running the test cases
             cmd = "cd " + validation_dir + ";"
-            cmd += 'export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64 && export PATH=$JAVA_HOME/bin:$PATH && timeout 720 regminer4apr test' # Test the program
+            cmd += 'timeout 720 regminer4apr test' # Test the program
             command_result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
             result_message = command_result.stdout.decode('utf-8')
             logger.debug(command_result.stdout.decode('utf-8'))
