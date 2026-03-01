@@ -62,17 +62,25 @@ class ChatGPT(AbstractModel):
                 'response': None
             }
             # Generate the patch
-            response = self.load_model(messages).choices[0].message.content
-            patch = self._decode_patch(response)
-            # Calculate the cost
-            input_tokens, output_tokens, total_cost = calculate_cost(self.model, messages, response)
-            # Update the result
-            result['input_tokens'] = input_tokens
-            result['output_tokens'] = output_tokens
-            result['total_cost'] = total_cost
-            result['patch'] = patch
-            result['response'] = response
-            logger.info(f"Generated patch {index + 1}/{sample_size}, with the input tokens {input_tokens}, output tokens {output_tokens} and cost {total_cost}")
+            full_response = self.load_model(messages)
+            if full_response is None:
+                result['input_tokens'] = 0
+                result['output_tokens'] = 0
+                result['total_cost'] = 0
+                result['patch'] = None
+                result['response'] = None
+            else:
+                response = full_response.choices[0].message.content
+                patch = self._decode_patch(response)
+                # Calculate the cost
+                input_tokens, output_tokens, total_cost = calculate_cost(self.model, messages, response)
+                # Update the result
+                result['input_tokens'] = input_tokens
+                result['output_tokens'] = output_tokens
+                result['total_cost'] = total_cost
+                result['patch'] = patch
+                result['response'] = response
+                logger.info(f"Generated patch {index + 1}/{sample_size}, with the input tokens {input_tokens}, output tokens {output_tokens} and cost {total_cost}")
             # Append the result
             results.append(result)
         

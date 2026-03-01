@@ -145,7 +145,6 @@ class RegMiner4APR_ChatGPT_ConversationalAPR(AbstractRepair):
                 # If the response is None, meaning API response is error
                 if patch_info['patch'] is None:
                     logger.warning("Cannot generate the patch!")
-                    total_generation_error += 1
                     write_json_file(
                         {
                             "patch": None,
