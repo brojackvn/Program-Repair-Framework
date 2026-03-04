@@ -12,7 +12,9 @@
         "method_end_line": 6623,
         "bic_commit_message": "String dtype: turn on by default (#61722)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/config_init.py"
+        ]
     },
     "2_pandas/core/arrays/arrow/array.py": {
         "context": "    @classmethod\n    def _box_pa_array(\n        cls, value, pa_type: pa.DataType | None = None, copy: bool = False\n    ) -> pa.Array | pa.ChunkedArray:\n        \"\"\"\n        Box value into a pyarrow Array or ChunkedArray.\n\n        Parameters\n        ----------\n        value : Sequence\n        pa_type : pa.DataType | None\n\n        Returns\n        -------\n        pa.Array or pa.ChunkedArray\n        \"\"\"\n        if isinstance(value, cls):\n            pa_array = value._pa_array\n        elif isinstance(value, (pa.Array, pa.ChunkedArray)):\n            pa_array = value\n        elif isinstance(value, BaseMaskedArray):\n            # GH 52625\n            if copy:\n                value = value.copy()\n            pa_array = value.__arrow_array__()\n\n        elif hasattr(value, \"__arrow_array__\"):\n            # e.g. StringArray\n            if copy:\n                value = value.copy()\n            pa_array = value.__arrow_array__()\n\n        else:\n            if (\n                isinstance(value, np.ndarray)\n                and pa_type is not None\n                and (\n                    pa.types.is_large_binary(pa_type)\n                    or pa.types.is_large_string(pa_type)\n                )\n            ):\n                # See https://github.com/apache/arrow/issues/35289\n                value = value.tolist()\n            elif copy and is_array_like(value):\n                # pa array should not get updated when numpy array is updated\n                value = value.copy()\n\n            if (\n                pa_type is not None\n                and pa.types.is_duration(pa_type)\n                and (not isinstance(value, np.ndarray) or value.dtype.kind not in \"mi\")\n            ):\n                # Workaround https://github.com/apache/arrow/issues/37291\n                from pandas.core.tools.timedeltas import to_timedelta\n\n                value = to_timedelta(value, unit=pa_type.unit).as_unit(pa_type.unit)\n                value = value.to_numpy()\n\n            if pa_type is not None and pa.types.is_timestamp(pa_type):\n                # Use DatetimeArray to exclude Decimal(NaN) (GH#61774) and\n                #  ensure constructor treats tznaive the same as non-pyarrow\n                #  dtypes (GH#61775)\n                from pandas.core.arrays.datetimes import (\n                    DatetimeArray,\n                    tz_to_dtype,\n                )\n\n                pass_dtype = tz_to_dtype(tz=pa_type.tz, unit=pa_type.unit)\n                value = extract_array(value, extract_numpy=True)\n                if isinstance(value, DatetimeArray):\n                    dta = value\n                else:\n                    dta = DatetimeArray._from_sequence(\n                        value, copy=copy, dtype=pass_dtype\n                    )\n                dta_mask = dta.isna()\n                value_i8 = cast(\"npt.NDArray\", dta.view(\"i8\"))\n                if not value_i8.flags[\"WRITEABLE\"]:\n                    # e.g. test_setitem_frame_2d_values\n                    value_i8 = value_i8.copy()\n                    dta = DatetimeArray._from_sequence(value_i8, dtype=dta.dtype)\n                value_i8[dta_mask] = 0  # GH#61776 avoid __sub__ overflow\n                pa_array = pa.array(dta._ndarray, type=pa_type, mask=dta_mask)\n                return pa_array\n\n            mask = None\n            if is_nan_na():\n                try:\n                    arr_value = np.asarray(value)\n                    if arr_value.ndim > 1:\n                        # e.g. test_fixed_size_list we have list data.  ndim > 1\n                        #  means there were no scalar (NA) entries.\n                        mask = np.zeros(len(value), dtype=np.bool_)\n                    else:\n                        mask = isna(arr_value)\n                except ValueError:\n                    # Ragged data that numpy raises on\n                    arr_value = construct_1d_object_array_from_listlike(value)\n                    mask = isna(arr_value)\n            elif (\n                getattr(value, \"dtype\", None) is None or value.dtype.kind not in \"iumMf\"\n            ):\n                arr_value = np.asarray(value, dtype=object)\n                # similar to isna(value) but exclude NaN, NaT, nat-like, nan-like\n                mask = is_pdna_or_none(arr_value)\n\n            try:\n                pa_array = pa.array(value, type=pa_type, mask=mask)\n            except (pa.ArrowInvalid, pa.ArrowTypeError):\n                # GH50430: let pyarrow infer type, then cast\n                pa_array = pa.array(value, mask=mask)\n\n            if pa_type is None and pa.types.is_duration(pa_array.type):\n                # Workaround https://github.com/apache/arrow/issues/37291\n                from pandas.core.tools.timedeltas import to_timedelta\n\n                value = to_timedelta(value)\n                value = value.to_numpy()\n                pa_array = pa.array(value, type=pa_type)\n\n            if pa.types.is_duration(pa_array.type) and pa_array.null_count > 0:\n                # GH52843: upstream bug for duration types when originally\n                # constructed with data containing numpy NaT.\n                # https://github.com/apache/arrow/issues/35088\n                arr = cls(pa_array)\n                arr = arr.fillna(arr.dtype.na_value)\n                pa_array = arr._pa_array\n\n        if pa_type is not None and pa_array.type != pa_type:\n            if pa.types.is_dictionary(pa_type):\n                pa_array = pa_array.dictionary_encode()\n                if pa_array.type != pa_type:\n                    pa_array = pa_array.cast(pa_type)\n            else:\n                try:\n                    pa_array = pa_array.cast(pa_type)\n                except (pa.ArrowNotImplementedError, pa.ArrowTypeError):\n                    if pa.types.is_string(pa_array.type) or pa.types.is_large_string(\n                        pa_array.type\n                    ):\n                        # TODO: Move logic in _from_sequence_of_strings into\n                        # _box_pa_array\n                        dtype = ArrowDtype(pa_type)\n                        return cls._from_sequence_of_strings(\n                            value, dtype=dtype\n                        )._pa_array\n                    else:\n                        raise\n\n        return pa_array\n",
@@ -27,7 +29,15 @@
         "method_end_line": 706,
         "bic_commit_message": "API: mode.nan_is_na to consistently distinguish NaN-vs-NA (#62040)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/_config/__init__.py",
+            "pandas/_libs/missing.pyi",
+            "pandas/_libs/missing.pyx",
+            "pandas/_libs/parsers.pyx",
+            "pandas/core/arrays/_utils.py",
+            "pandas/core/arrays/arrow/array.py",
+            "pandas/core/config_init.py"
+        ]
     },
     "3_pandas/core/arrays/arrow/array.py": {
         "context": "    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            parr = result._pa_array\n            mask = pc.is_nan(parr).to_numpy()\n            arr = pc.replace_with_mask(parr, mask, pa.scalar(None, type=parr.type))\n            result = type(self)(arr)\n        return result\n",
@@ -42,7 +52,16 @@
         "method_end_line": 1058,
         "bic_commit_message": "API: mode.nan_is_na to consistently distinguish NaN-vs-NA (#62040)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/_config/__init__.py",
+            "pandas/_libs/missing.pyi",
+            "pandas/_libs/missing.pyx",
+            "pandas/_libs/parsers.pyx",
+            "pandas/core/arrays/_utils.py",
+            "pandas/core/arrays/arrow/array.py",
+            "pandas/core/arrays/numeric.py",
+            "pandas/core/config_init.py"
+        ]
     },
     "4_pandas/_config/config.py": {
         "context": "@contextmanager\ndef option_context(*args) -> Generator[None]:\n    \"\"\"\n    Context manager to temporarily set options in a ``with`` statement.\n\n    This method allows users to set one or more pandas options temporarily\n    within a controlled block. The previous options' values are restored\n    once the block is exited. This is useful when making temporary adjustments\n    to pandas' behavior without affecting the global state.\n\n    Parameters\n    ----------\n    *args : str | object | dict\n        An even amount of arguments provided in pairs which will be\n        interpreted as (pattern, value) pairs. Alternatively, a single\n        dictionary of {pattern: value} may be provided.\n\n    Returns\n    -------\n    None\n        No return value.\n\n    Yields\n    ------\n    None\n        No yield value.\n\n    See Also\n    --------\n    get_option : Retrieve the value of the specified option.\n    set_option : Set the value of the specified option.\n    reset_option : Reset one or more options to their default value.\n    describe_option : Print the description for one or more registered options.\n\n    Notes\n    -----\n    For all available options, please view the :ref:`User Guide <options.available>`\n    or use ``pandas.describe_option()``.\n\n    Examples\n    --------\n    >>> from pandas import option_context\n    >>> with option_context(\"display.max_rows\", 10, \"display.max_columns\", 5):\n    ...     pass\n    >>> with option_context({\"display.max_rows\": 10, \"display.max_columns\": 5}):\n    ...     pass\n    \"\"\"\n    if len(args) == 1 and isinstance(args[0], dict):\n        args = tuple(kv for item in args[0].items() for kv in item)\n\n    if len(args) % 2 != 0 or len(args) < 2:\n        raise ValueError(\n            \"Provide an even amount of arguments as \"\n            \"option_context(pat, val, pat, val...).\"\n        )\n\n    ops = tuple(zip(args[::2], args[1::2], strict=True))\n    try:\n        undo = tuple((pat, get_option(pat)) for pat, val in ops)\n        for pat, val in ops:\n            set_option(pat, val)\n        yield\n    finally:\n        for pat, val in undo:\n            set_option(pat, val)\n",
@@ -57,7 +76,9 @@
         "method_end_line": 514,
         "bic_commit_message": "REF: Remove dynamic docstrings from option methods (#57710)\n\n* REF: Remove dynamic docstrings from option methods\r\n\r\n* Fix arguments\r\n\r\n* Reuse\r\n\r\n* Fix drop duplicate section, numpydoc valudation\r\n\r\n* Fix formatting",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/_config/config.py"
+        ]
     },
     "5_pandas/core/frame.py": {
         "context": "        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                    and not is_bool_dtype(dtype)\n                )\n                or (dtype.type is str and np.object_ in dtypes_set)\n            )\n",
@@ -72,7 +93,9 @@
         "method_end_line": 5162,
         "bic_commit_message": "String dtype: turn on by default (#61722)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/config_init.py"
+        ]
     },
     "6_pandas/io/json/_table_schema.py": {
         "context": "",
@@ -87,7 +110,9 @@
         "method_end_line": 5162,
         "bic_commit_message": "String dtype: turn on by default (#61722)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/config_init.py"
+        ]
     },
     "8_pandas/core/indexes/base.py": {
         "context": "    @final\n    def _format_data(self, name=None) -> str_t:\n        \"\"\"\n        Return the formatted data as a unicode string.\n        \"\"\"\n        # do we want to justify (only do so for non-objects)\n        is_justify = True\n\n        if self.inferred_type == \"string\":\n            is_justify = False\n        elif isinstance(self.dtype, CategoricalDtype):\n            self = cast(\"CategoricalIndex\", self)\n            if is_object_dtype(self.categories.dtype):\n                is_justify = False\n        elif isinstance(self, ABCRangeIndex):\n            # We will do the relevant formatting via attrs\n            return \"\"\n\n        return format_object_summary(\n            self,\n            self._formatter_func,\n            is_justify=is_justify,\n            name=name,\n            line_break_each_value=self._is_multi,\n        )\n",
@@ -102,7 +127,9 @@
         "method_end_line": 1431,
         "bic_commit_message": "String dtype: turn on by default (#61722)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/config_init.py"
+        ]
     },
     "9_pandas/core/frame.py": {
         "context": "    def _should_reindex_frame_op(self, right, op, axis: int, fill_value, level) -> bool:\n        \"\"\"\n        Check if this is an operation between DataFrames that will need to reindex.\n        \"\"\"\n        if op is operator.pow or op is roperator.rpow:\n            # GH#32685 pow has special semantics for operating with null values\n            return False\n\n        if not isinstance(right, DataFrame):\n            return False\n\n        if (\n            isinstance(self.columns, MultiIndex)\n            or isinstance(right.columns, MultiIndex)\n        ) and not self.columns.equals(right.columns):\n            # GH#60498 Reindex if MultiIndexe columns are not matching\n            return True\n\n        if fill_value is None and level is None and axis == 1:\n            # TODO: any other cases we should handle here?\n\n            # Intersection is always unique so we have to check the unique columns\n            left_uniques = self.columns.unique()\n            right_uniques = right.columns.unique()\n            cols = left_uniques.intersection(right_uniques)\n            if len(cols) and not (\n                len(cols) == len(left_uniques) and len(cols) == len(right_uniques)\n            ):\n                # TODO: is there a shortcut available when len(cols) == 0?\n                return True\n\n        return False\n",
@@ -117,7 +144,9 @@
         "method_end_line": 8052,
         "bic_commit_message": "BUG: Fix DataFrame binary arithmatic operation handling of unaligned \u2026 (#60538)\n\n* BUG: Fix DataFrame binary arithmatic operation handling of unaligned MultiIndex columns\r\n\r\n* Address review comment",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/frame.py"
+        ]
     },
     "10_pandas/_libs/hashing.pyx": {
         "context": "@cython.boundscheck(False)\ndef hash_object_array(\n    object[:] arr, str key, str encoding=\"utf8\"\n) -> np.ndarray[np.uint64]:\n    \"\"\"\n    Parameters\n    ----------\n    arr : 1-d object ndarray of objects\n    key : hash key, must be 16 byte len encoded\n    encoding : encoding for key & arr, default to 'utf8'\n\n    Returns\n    -------\n    1-d uint64 ndarray of hashes.\n\n    Raises\n    ------\n    TypeError\n        If the array contains mixed types.\n\n    Notes\n    -----\n    Allowed values must be strings, or nulls\n    mixed array types will raise TypeError.\n    \"\"\"\n    cdef:\n        Py_ssize_t i, n\n        uint64_t[::1] result\n        bytes data, k\n        uint8_t *kb\n        uint64_t *lens\n        char **vecs\n        char *cdata\n        object val\n        list data_list = []\n\n    k = <bytes>key.encode(encoding)\n    kb = <uint8_t *>k\n    if len(k) != 16:\n        raise ValueError(\n            f\"key should be a 16-byte string encoded, got {k} (len {len(k)})\"\n        )\n\n    n = len(arr)\n\n    # create an array of bytes\n    vecs = <char **>malloc(n * sizeof(char *))\n    if vecs is NULL:\n        raise MemoryError()\n    lens = <uint64_t*>malloc(n * sizeof(uint64_t))\n    if lens is NULL:\n        raise MemoryError()\n\n    for i in range(n):\n        val = arr[i]\n        if isinstance(val, bytes):\n            data = <bytes>val\n        elif isinstance(val, str):\n            data = <bytes>val.encode(encoding)\n        elif val is None or is_nan(val):\n            # null, stringify and encode\n            data = <bytes>str(val).encode(encoding)\n\n        elif isinstance(val, tuple):\n            # GH#28969 we could have a tuple, but need to ensure that\n            #  the tuple entries are themselves hashable before converting\n            #  to str\n            hash(val)\n            data = <bytes>str(val).encode(encoding)\n        else:\n            raise TypeError(\n                f\"{val} of type {type(val)} is not a valid type for hashing, \"\n                \"must be string or null\"\n            )\n\n        lens[i] = len(data)\n        cdata = data\n\n        # keep the references alive through the end of the\n        # function\n        data_list.append(data)\n        vecs[i] = cdata\n\n    result = np.empty(n, dtype=np.uint64)\n    with nogil:\n        for i in range(n):\n            result[i] = low_level_siphash(<uint8_t *>vecs[i], lens[i], kb)\n\n    free(vecs)\n    free(lens)\n    return result.base  # .base to retrieve underlying np.ndarray\n",
@@ -132,7 +161,11 @@
         "method_end_line": 114,
         "bic_commit_message": "REF: Use more cython memoryviews (#58271)\n\n* fix some cython 3 todos\r\n\r\n* Another memoryview\r\n\r\n* Add another memoryview\r\n\r\n* Use more memoryview\r\n\r\n* another memoryview\r\n\r\n* more memoryview syntax in groupby\r\n\r\n* Add a few more memoryviews\r\n\r\n* Use Py_ssize_t",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/_libs/algos.pyx",
+            "pandas/_libs/groupby.pyx",
+            "pandas/_libs/hashing.pyx"
+        ]
     },
     "11_pandas/core/indexes/interval.py": {
         "context": "@set_module(\"pandas\")\ndef interval_range(\n    start=None,\n    end=None,\n    periods=None,\n    freq=None,\n    name: Hashable | None = None,\n    closed: IntervalClosedType = \"right\",\n) -> IntervalIndex:\n    \"\"\"\n    Return a fixed frequency IntervalIndex.\n\n    Parameters\n    ----------\n    start : numeric or datetime-like, default None\n        Left bound for generating intervals.\n    end : numeric or datetime-like, default None\n        Right bound for generating intervals.\n    periods : int, default None\n        Number of periods to generate.\n    freq : numeric, str, Timedelta, datetime.timedelta, or DateOffset, default None\n        The length of each interval. Must be consistent with the type of start\n        and end, e.g. 2 for numeric, or '5H' for datetime-like.  Default is 1\n        for numeric and 'D' for datetime-like.\n    name : str, default None\n        Name of the resulting IntervalIndex.\n    closed : {'left', 'right', 'both', 'neither'}, default 'right'\n        Whether the intervals are closed on the left-side, right-side, both\n        or neither.\n\n    Returns\n    -------\n    IntervalIndex\n        Object with a fixed frequency.\n\n    See Also\n    --------\n    IntervalIndex : An Index of intervals that are all closed on the same side.\n\n    Notes\n    -----\n    Of the four parameters ``start``, ``end``, ``periods``, and ``freq``,\n    exactly three must be specified. If ``freq`` is omitted, the resulting\n    ``IntervalIndex`` will have ``periods`` linearly spaced elements between\n    ``start`` and ``end``, inclusively.\n\n    To learn more about datetime-like frequency strings, please see\n    :ref:`this link<timeseries.offset_aliases>`.\n\n    Examples\n    --------\n    Numeric ``start`` and  ``end`` is supported.\n\n    >>> pd.interval_range(start=0, end=5)\n    IntervalIndex([(0, 1], (1, 2], (2, 3], (3, 4], (4, 5]],\n                  dtype='interval[int64, right]')\n\n    Additionally, datetime-like input is also supported.\n\n    >>> pd.interval_range(\n    ...     start=pd.Timestamp(\"2017-01-01\"), end=pd.Timestamp(\"2017-01-04\")\n    ... )\n    IntervalIndex([(2017-01-01 00:00:00, 2017-01-02 00:00:00],\n                   (2017-01-02 00:00:00, 2017-01-03 00:00:00],\n                   (2017-01-03 00:00:00, 2017-01-04 00:00:00]],\n                  dtype='interval[datetime64[ns], right]')\n\n    The ``freq`` parameter specifies the frequency between the left and right.\n    endpoints of the individual intervals within the ``IntervalIndex``.  For\n    numeric ``start`` and ``end``, the frequency must also be numeric.\n\n    >>> pd.interval_range(start=0, periods=4, freq=1.5)\n    IntervalIndex([(0.0, 1.5], (1.5, 3.0], (3.0, 4.5], (4.5, 6.0]],\n                  dtype='interval[float64, right]')\n\n    Similarly, for datetime-like ``start`` and ``end``, the frequency must be\n    convertible to a DateOffset.\n\n    >>> pd.interval_range(start=pd.Timestamp(\"2017-01-01\"), periods=3, freq=\"MS\")\n    IntervalIndex([(2017-01-01 00:00:00, 2017-02-01 00:00:00],\n                   (2017-02-01 00:00:00, 2017-03-01 00:00:00],\n                   (2017-03-01 00:00:00, 2017-04-01 00:00:00]],\n                  dtype='interval[datetime64[ns], right]')\n\n    Specify ``start``, ``end``, and ``periods``; the frequency is generated\n    automatically (linearly spaced).\n\n    >>> pd.interval_range(start=0, end=6, periods=4)\n    IntervalIndex([(0.0, 1.5], (1.5, 3.0], (3.0, 4.5], (4.5, 6.0]],\n              dtype='interval[float64, right]')\n\n    The ``closed`` parameter specifies which endpoints of the individual\n    intervals within the ``IntervalIndex`` are closed.\n\n    >>> pd.interval_range(end=5, periods=4, closed=\"both\")\n    IntervalIndex([[1, 2], [2, 3], [3, 4], [4, 5]],\n                  dtype='interval[int64, both]')\n    \"\"\"\n    start = maybe_box_datetimelike(start)\n    end = maybe_box_datetimelike(end)\n    endpoint = start if start is not None else end\n\n    if freq is None and com.any_none(periods, start, end):\n        freq = 1 if is_number(endpoint) else \"D\"\n\n    if com.count_not_none(start, end, periods, freq) != 3:\n        raise ValueError(\n            \"Of the four parameters: start, end, periods, and \"\n            \"freq, exactly three must be specified\"\n        )\n\n    if not _is_valid_endpoint(start):\n        raise ValueError(f\"start must be numeric or datetime-like, got {start}\")\n    if not _is_valid_endpoint(end):\n        raise ValueError(f\"end must be numeric or datetime-like, got {end}\")\n\n    periods = validate_periods(periods)\n\n    if freq is not None and not is_number(freq):\n        try:\n            freq = to_offset(freq)\n        except ValueError as err:\n            raise ValueError(\n                f\"freq must be numeric or convertible to DateOffset, got {freq}\"\n            ) from err\n\n    # verify type compatibility\n    if not all(\n        [\n            _is_type_compatible(start, end),\n            _is_type_compatible(start, freq),\n            _is_type_compatible(end, freq),\n        ]\n    ):\n        raise TypeError(\"start, end, freq need to be type compatible\")\n\n    # +1 to convert interval count to breaks count (n breaks = n-1 intervals)\n    if periods is not None:\n        periods += 1\n\n    breaks: np.ndarray | TimedeltaIndex | DatetimeIndex\n\n    if is_number(endpoint):\n        dtype: np.dtype = np.dtype(\"int64\")\n        if com.all_not_none(start, end, freq):\n            if (\n                isinstance(start, (float, np.float16))\n                or isinstance(end, (float, np.float16))\n                or isinstance(freq, (float, np.float16))\n            ):\n                dtype = np.dtype(\"float64\")\n            elif (\n                isinstance(start, (np.integer, np.floating))\n                and isinstance(end, (np.integer, np.floating))\n                and start.dtype == end.dtype\n            ):\n                dtype = start.dtype\n            # 0.1 ensures we capture end\n            breaks = np.arange(start, end + (freq * 0.1), freq)\n            breaks = maybe_downcast_numeric(breaks, dtype)\n        else:\n            # compute the period/start/end if unspecified (at most one)\n            if periods is None:\n                periods = int((end - start) // freq) + 1\n            elif start is None:\n                start = end - (periods - 1) * freq\n            elif end is None:\n                end = start + (periods - 1) * freq\n\n            breaks = np.linspace(start, end, periods)\n        if all(is_integer(x) for x in com.not_none(start, end, freq)):\n            # np.linspace always produces float output\n            breaks = maybe_downcast_numeric(breaks, dtype)\n    else:\n        # delegate to the appropriate range function\n        if isinstance(endpoint, Timestamp):\n            breaks = date_range(start=start, end=end, periods=periods, freq=freq)\n        else:\n            breaks = timedelta_range(start=start, end=end, periods=periods, freq=freq)\n\n    return IntervalIndex.from_breaks(\n        breaks,\n        name=name,\n        closed=closed,\n        dtype=IntervalDtype(subtype=breaks.dtype, closed=closed),\n    )\n",
@@ -147,7 +180,9 @@
         "method_end_line": 1463,
         "bic_commit_message": "Fix for issue #57268 - ENH: Preserve input start/end type in interval\u2026 (#57399)\n\n* Fix for issue #57268 - ENH: Preserve input start/end type in interval_range\r\n\r\n* issue #57268 - github actions resolution\r\n\r\n* Use generated datatype from breaks\r\n\r\n* Ruff - Pre-commit issue fix\r\n\r\n* Fix for issue #57268 - floating point support\r\n\r\n* int - float dtype compatability\r\n\r\n* whatsnew documentation update\r\n\r\n* OS based varaible access\r\n\r\n* Fixing failed unit test cases\r\n\r\n* pytest - interval passsed\r\n\r\n* Python backwards compatability\r\n\r\n* Pytest\r\n\r\n* Fixing PyLint and mypy issues\r\n\r\n* dtype specification\r\n\r\n* Conditional statement simplification\r\n\r\n* remove redundant code blocks\r\n\r\n* Changing whatsnew to interval section\r\n\r\n* Passing expected in parameterize\r\n\r\n* Update doc/source/whatsnew/v3.0.0.rst\r\n\r\nCo-authored-by: Matthew Roeschke <10647082+mroeschke@users.noreply.github.com>\r\n\r\n* Update pandas/core/indexes/interval.py\r\n\r\nCo-authored-by: Matthew Roeschke <10647082+mroeschke@users.noreply.github.com>\r\n\r\n---------\r\n\r\nCo-authored-by: Matthew Roeschke <10647082+mroeschke@users.noreply.github.com>",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/indexes/interval.py"
+        ]
     },
     "12_pandas/core/arrays/numpy_.py": {
         "context": "",
@@ -162,7 +197,14 @@
         "method_end_line": 368,
         "bic_commit_message": "REF (string): avoid copy in StringArray factorize (#59551)\n\n* REF: avoid copy in StringArray factorize\r\n\r\n* mypy fixup\r\n\r\n* un-xfail",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/_libs/hashtable.pyx",
+            "pandas/_libs/hashtable_class_helper.pxi.in",
+            "pandas/core/arrays/_mixins.py",
+            "pandas/core/arrays/categorical.py",
+            "pandas/core/arrays/numpy_.py",
+            "pandas/core/arrays/string_.py"
+        ]
     },
     "14_pandas/core/arrays/categorical.py": {
         "context": "    def __init__(\n        self,\n        values,\n        categories=None,\n        ordered=None,\n        dtype: Dtype | None = None,\n        copy: bool = True,\n    ) -> None:\n        dtype = CategoricalDtype._from_values_or_dtype(\n            values, categories, ordered, dtype\n        )\n        # At this point, dtype is always a CategoricalDtype, but\n        # we may have dtype.categories be None, and we need to\n        # infer categories in a factorization step further below\n\n        if not is_list_like(values):\n            # GH#38433\n            raise TypeError(\"Categorical input must be list-like\")\n\n        # null_mask indicates missing values we want to exclude from inference.\n        # This means: only missing values in list-likes (not arrays/ndframes).\n        null_mask = np.array(False)\n\n        # sanitize input\n        vdtype = getattr(values, \"dtype\", None)\n        if isinstance(vdtype, CategoricalDtype):\n            if dtype.categories is None:\n                dtype = CategoricalDtype(values.categories, dtype.ordered)\n        elif isinstance(values, range):\n            from pandas.core.indexes.range import RangeIndex\n\n            values = RangeIndex(values)\n        elif not isinstance(values, (ABCIndex, ABCSeries, ExtensionArray)):\n            values = com.convert_to_list_like(values)\n            if isinstance(values, list) and len(values) == 0:\n                # By convention, empty lists result in object dtype:\n                values = np.array([], dtype=object)\n            elif isinstance(values, np.ndarray):\n                if values.ndim > 1:\n                    # preempt sanitize_array from raising ValueError\n                    raise NotImplementedError(\n                        \"> 1 ndim Categorical are not supported at this time\"\n                    )\n                values = sanitize_array(values, None)\n            else:\n                # i.e. must be a list\n                arr = sanitize_array(values, None)\n                null_mask = isna(arr)\n                if null_mask.any():\n                    # We remove null values here, then below will re-insert\n                    #  them, grep \"full_codes\"\n                    arr_list = [values[idx] for idx in np.where(~null_mask)[0]]\n\n                    # GH#44900 Do not cast to float if we have only missing values\n                    if arr_list or arr.dtype == \"object\":\n                        sanitize_dtype = None\n                    else:\n                        sanitize_dtype = arr.dtype\n\n                    arr = sanitize_array(arr_list, None, dtype=sanitize_dtype)\n                values = arr\n\n        if dtype.categories is None:\n            if isinstance(values.dtype, ArrowDtype) and issubclass(\n                values.dtype.type, CategoricalDtypeType\n            ):\n                from pandas import Index\n\n                if isinstance(values, Index):\n                    arr = values._data._pa_array.combine_chunks()\n                else:\n                    arr = extract_array(values)._pa_array.combine_chunks()\n                categories = arr.dictionary.to_pandas(types_mapper=ArrowDtype)\n                codes = arr.indices.to_numpy()\n                dtype = CategoricalDtype(categories, values.dtype.pyarrow_dtype.ordered)\n            else:\n                if not isinstance(values, ABCIndex):\n                    # in particular RangeIndex xref test_index_equal_range_categories\n                    values = sanitize_array(values, None)\n                try:\n                    codes, categories = factorize(values, sort=True)\n                except TypeError as err:\n                    codes, categories = factorize(values, sort=False)\n                    if dtype.ordered:\n                        # raise, as we don't have a sortable data structure and so\n                        # the user should give us one by specifying categories\n                        raise TypeError(\n                            \"'values' is not ordered, please \"\n                            \"explicitly specify the categories order \"\n                            \"by passing in a categories argument.\"\n                        ) from err\n\n                # we're inferring from values\n                dtype = CategoricalDtype(categories, dtype.ordered)\n\n        elif isinstance(values.dtype, CategoricalDtype):\n            old_codes = extract_array(values)._codes\n            codes = recode_for_categories(\n                old_codes,\n                values.dtype.categories,\n                dtype.categories,\n                copy=copy,\n                warn=True,\n            )\n\n        else:\n            codes = _get_codes_for_values(values, dtype.categories)\n\n        if null_mask.any():\n            # Reinsert -1 placeholders for previously removed missing values\n            full_codes = -np.ones(null_mask.shape, dtype=codes.dtype)\n            full_codes[~null_mask] = codes\n            codes = full_codes\n\n        dtype = CategoricalDtype(ordered=False).update_dtype(dtype)\n        arr = coerce_indexer_dtype(codes, dtype.categories)\n        super().__init__(arr, dtype)\n",
@@ -177,7 +219,9 @@
         "method_end_line": 504,
         "bic_commit_message": "String dtype: turn on by default (#61722)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/config_init.py"
+        ]
     },
     "15_django/db/models/sql/query.py": {
         "context": "    def _get_defer_select_mask(self, opts, mask, select_mask=None):\n        if select_mask is None:\n            select_mask = {}\n        select_mask[opts.pk] = {}\n        # All concrete fields that are not part of the defer mask must be\n        # loaded. If a relational field is encountered it gets added to the\n        # mask for it be considered if `select_related` and the cycle continues\n        # by recursively calling this function.\n        for field in opts.concrete_fields:\n            field_mask = mask.pop(field.name, None)\n            field_att_mask = mask.pop(field.attname, None)\n            if field_mask is None and field_att_mask is None:\n                select_mask.setdefault(field, {})\n            elif field_mask:\n                if not field.is_relation:\n                    raise FieldError(next(iter(field_mask)))\n                field_select_mask = select_mask.setdefault(field, {})\n                related_model = field.remote_field.model._meta.concrete_model\n                self._get_defer_select_mask(\n                    related_model._meta, field_mask, field_select_mask\n                )\n        # Remaining defer entries must be references to reverse relationships.\n        # The following code is expected to raise FieldError if it encounters\n        # a malformed defer entry.\n        for field_name, field_mask in mask.items():\n            if filtered_relation := self._filtered_relations.get(field_name):\n                relation = opts.get_field(filtered_relation.relation_name)\n                field_select_mask = select_mask.setdefault((field_name, relation), {})\n                field = relation.field\n            else:\n                field = opts.get_field(field_name).field\n                field_select_mask = select_mask.setdefault(field, {})\n            related_model = field.model._meta.concrete_model\n            self._get_defer_select_mask(\n                related_model._meta, field_mask, field_select_mask\n            )\n        return select_mask\n",
@@ -192,7 +236,10 @@
         "method_end_line": 748,
         "bic_commit_message": "Fixed #21204 -- Tracked field deferrals by field instead of models.\n\nThis ensures field deferral works properly when a model is involved\nmore than once in the same query with a distinct deferral mask.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/sql/compiler.py",
+            "django/db/models/sql/query.py"
+        ]
     },
     "16_pandas/core/generic.py": {
         "context": "    @final\n    def _get_cleaned_column_resolvers(self) -> dict[Hashable, Series]:\n        \"\"\"\n        Return the special character free column resolvers of a DataFrame.\n\n        Column names with special characters are 'cleaned up' so that they can\n        be referred to by backtick quoting.\n        Used in :meth:`DataFrame.eval`.\n        \"\"\"\n        from pandas.core.computation.parsing import clean_column_name\n        from pandas.core.series import Series\n\n        if isinstance(self, ABCSeries):\n            return {clean_column_name(self.name): self}\n\n        dtypes = self.dtypes\n        return {\n            clean_column_name(k): Series(\n                v, copy=False, index=self.index, name=k, dtype=dtypes[k]\n            ).__finalize__(self)\n            for k, v in zip(self.columns, self._iter_column_arrays())\n            if not isinstance(k, int)\n        }\n",
@@ -207,7 +254,9 @@
         "method_end_line": 611,
         "bic_commit_message": "REGR: query raising for all NaT in object column (#57488)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/generic.py"
+        ]
     },
     "17_pandas/core/indexes/datetimelike.py": {
         "context": "",
@@ -222,7 +271,12 @@
         "method_end_line": 936,
         "bic_commit_message": "API: date_range, timedelta_range infer unit from start/end/freq (#63146)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/arrays/datetimelike.py",
+            "pandas/core/arrays/datetimes.py",
+            "pandas/core/indexes/datetimes.py",
+            "pandas/core/indexes/timedeltas.py"
+        ]
     },
     "18_pandas/core/arrays/interval.py": {
         "context": "    @property\n    def _combined(self) -> IntervalSide:\n        # error: Item \"ExtensionArray\" of \"ExtensionArray | ndarray[Any, Any]\"\n        # has no attribute \"reshape\"  [union-attr]\n        left = self.left._values.reshape(-1, 1)  # type: ignore[union-attr]\n        right = self.right._values.reshape(-1, 1)  # type: ignore[union-attr]\n        # GH#38353 instead of casting to object, operating on a\n        # complex128 ndarray is much more performant.\n        if needs_i8_conversion(left.dtype):\n            # error: Item \"ndarray[Any, Any]\" of \"Any | ndarray[Any, Any]\" has\n            # no attribute \"_concat_same_type\"\n            comb = left._concat_same_type(  # type: ignore[union-attr]\n                [left, right], axis=1\n            )\n            comb = comb.view(\"complex128\")[:, 0]\n        else:\n            comb = (np.array(left.ravel(), dtype=\"complex128\")) + (\n                1j * np.array(right.ravel(), dtype=\"complex128\")\n            )\n        return comb\n",
@@ -237,7 +291,9 @@
         "method_end_line": 2135,
         "bic_commit_message": "BUG: IntervalIndex.unique() only contains the first interval if all interval borders are negative (#61920)\n\nCo-authored-by: Khemkaran <sunny@Khemkaran-MacBook-Pro.local>",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/arrays/interval.py"
+        ]
     },
     "19_pandas/core/groupby/ops.py": {
         "context": "    def _ob_index_and_ids(\n        self,\n        levels: list[Index],\n        codes: list[npt.NDArray[np.intp]],\n        names: list[Hashable],\n        sorts: list[bool],\n    ) -> tuple[MultiIndex, npt.NDArray[np.intp]]:\n        consistent_sorting = all(sorts[0] == sort for sort in sorts[1:])\n        sort_in_compress = sorts[0] if consistent_sorting else False\n        shape = tuple(len(level) for level in levels)\n        group_index = get_group_index(codes, shape, sort=True, xnull=True)\n        ob_ids, obs_group_ids = compress_group_index(group_index, sort=sort_in_compress)\n        ob_ids = ensure_platform_int(ob_ids)\n        ob_index_codes = decons_obs_group_ids(\n            ob_ids, obs_group_ids, shape, codes, xnull=True\n        )\n        ob_index = MultiIndex(\n            levels=levels,\n            codes=ob_index_codes,\n            names=names,\n            verify_integrity=False,\n        )\n        if not consistent_sorting:\n            # Sort by the levels where the corresponding sort argument is True\n            n_levels = len(sorts)\n            drop_levels = [\n                n_levels - idx\n                for idx, sort in enumerate(reversed(sorts), 1)\n                if not sort\n            ]\n            if len(drop_levels) > 0:\n                sorter = ob_index._drop_level_numbers(drop_levels).argsort()\n            else:\n                sorter = ob_index.argsort()\n            ob_index = ob_index.take(sorter)\n            _, index = np.unique(sorter, return_index=True)\n            ob_ids = np.where(ob_ids == -1, -1, index.take(ob_ids))\n        ob_ids = ensure_platform_int(ob_ids)\n        return ob_index, ob_ids\n",
@@ -252,7 +308,10 @@
         "method_end_line": 887,
         "bic_commit_message": "API: value_counts to consistently maintain order of input (#59745)\n\n* API: value_counts to consistently maintain order of input\r\n\r\n* Docs\r\n\r\n* Cleanup\r\n\r\n* Test & docs fixups\r\n\r\n* Refine whatsnew\r\n\r\n* Refine whatsnew",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/groupby/groupby.py",
+            "pandas/core/groupby/ops.py"
+        ]
     },
     "20_pandas/io/pytables.py": {
         "context": "    def write_multi_index(self, key: str, index: MultiIndex) -> None:\n        setattr(self.attrs, f\"{key}_nlevels\", index.nlevels)\n\n        for i, (lev, level_codes, name) in enumerate(\n            zip(index.levels, index.codes, index.names, strict=True)\n        ):\n            # write the level\n            if isinstance(lev.dtype, ExtensionDtype):\n                raise NotImplementedError(\n                    \"Saving a MultiIndex with an extension dtype is not supported.\"\n                )\n            level_key = f\"{key}_level{i}\"\n            conv_level = _convert_index(level_key, lev, self.encoding, self.errors)\n            self.write_array(level_key, conv_level.values)\n            node = getattr(self.group, level_key)\n            node._v_attrs.kind = conv_level.kind\n            node._v_attrs.name = name\n\n            # write the name\n            setattr(node._v_attrs, f\"{key}_name{name}\", name)\n\n            # write the labels\n            label_key = f\"{key}_label{i}\"\n            self.write_array(label_key, level_codes)\n",
@@ -267,7 +326,9 @@
         "method_end_line": 3167,
         "bic_commit_message": "String dtype: turn on by default (#61722)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/config_init.py"
+        ]
     },
     "21_pandas/core/common.py": {
         "context": "def is_bool_indexer(key: Any) -> bool:\n    \"\"\"\n    Check whether `key` is a valid boolean indexer.\n\n    Parameters\n    ----------\n    key : Any\n        Only list-likes may be considered boolean indexers.\n        All other types are not considered a boolean indexer.\n        For array-like input, boolean ndarrays or ExtensionArrays\n        with ``_is_boolean`` set are considered boolean indexers.\n\n    Returns\n    -------\n    bool\n        Whether `key` is a valid boolean indexer.\n\n    Raises\n    ------\n    ValueError\n        When the array is an object-dtype ndarray or ExtensionArray\n        and contains missing values.\n\n    See Also\n    --------\n    check_array_indexer : Check that `key` is a valid array to index,\n        and convert to an ndarray.\n    \"\"\"\n    if isinstance(\n        key, (ABCSeries, np.ndarray, ABCIndex, ABCExtensionArray)\n    ) and not isinstance(key, ABCMultiIndex):\n        if key.dtype == np.object_:\n            key_array = np.asarray(key)\n\n            if not lib.is_bool_array(key_array):\n                na_msg = \"Cannot mask with non-boolean array containing NA / NaN values\"\n                if lib.is_bool_array(key_array, skipna=True):\n                    # Don't raise on e.g. [\"A\", \"B\", np.nan], see\n                    #  test_loc_getitem_list_of_labels_categoricalindex_with_na\n                    raise ValueError(na_msg)\n                return False\n            return True\n        elif is_bool_dtype(key.dtype):\n            return True\n    elif isinstance(key, list):\n        # check if np.array(key).dtype would be bool\n        if len(key) > 0:\n            if type(key) is not list:\n                # GH#42461 cython will raise TypeError if we pass a subclass\n                key = list(key)\n            return lib.is_bool_list(key)\n\n    return False\n",
@@ -282,7 +343,9 @@
         "method_end_line": 155,
         "bic_commit_message": "PERF: RangeIndex.__getitem__ with integers return RangeIndex (#57770)\n\n* PERF: RangeIndex.take with 1 value return RangeIndex\r\n\r\n* add issue number\r\n\r\n* Move to _shallow_copy, support empty join as well\r\n\r\n* Fix self.name\r\n\r\n* FIx error message\r\n\r\n* Fix hdf test\r\n\r\n* PERF: RangeIndex.__getitem__ with integers return RangeIndex\r\n\r\n* PERF: RangeIndex.__getitem__ with integers return RangeIndex\r\n\r\n* Handle ellipse\r\n\r\n* Catch ValueError",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/indexes/range.py"
+        ]
     },
     "22_pandas/core/frame.py": {
         "context": "    def _set_item_frame_value(self, key, value: DataFrame) -> None:\n        self._ensure_valid_index(value)\n\n        # align columns\n        if key in self.columns:\n            loc = self.columns.get_loc(key)\n            cols = self.columns[loc]\n            len_cols = 1 if is_scalar(cols) or isinstance(cols, tuple) else len(cols)\n            if len_cols != len(value.columns):\n                raise ValueError(\"Columns must be same length as key\")\n\n            # align right-hand-side columns if self.columns\n            # is multi-index and self[key] is a sub-frame\n            if isinstance(self.columns, MultiIndex) and isinstance(\n                loc, (slice, Series, np.ndarray, Index)\n            ):\n                cols_droplevel = maybe_droplevels(cols, key)\n                if (\n                    not isinstance(cols_droplevel, MultiIndex)\n                    and not cols_droplevel.any()\n                ):\n                    return\n                if len(cols_droplevel) and not cols_droplevel.equals(value.columns):\n                    value = value.reindex(cols_droplevel, axis=1)\n\n                for col, col_droplevel in zip(cols, cols_droplevel):\n                    self[col] = value[col_droplevel]\n                return\n\n            if is_scalar(cols):\n                self[cols] = value[value.columns[0]]\n                return\n\n            locs: np.ndarray | list\n            if isinstance(loc, slice):\n                locs = np.arange(loc.start, loc.stop, loc.step)\n            elif is_scalar(loc):\n                locs = [loc]\n            else:\n                locs = loc.nonzero()[0]\n\n            return self.isetitem(locs, value)\n\n        if len(value.columns) > 1:\n            raise ValueError(\n                \"Cannot set a DataFrame with multiple columns to the single \"\n                f\"column {key}\"\n            )\n        elif len(value.columns) == 0:\n            raise ValueError(\n                f\"Cannot set a DataFrame without columns to the column {key}\"\n            )\n\n        self[key] = value[value.columns[0]]\n",
@@ -297,7 +360,9 @@
         "method_end_line": 4492,
         "bic_commit_message": "Avoid reindexing values assigned to a multi-index when cols_droplevel contains empty values  (#62404)",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "pandas/core/frame.py"
+        ]
     },
     "24_django/urls/resolvers.py": {
         "context": "    def match(self, path):\n        # Only use regex overhead if there are converters.\n        if self.converters:\n            if match := self.regex.search(path):\n                # RoutePattern doesn't allow non-named groups so args are\n                # ignored.\n                kwargs = match.groupdict()\n                for key, value in kwargs.items():\n                    converter = self.converters[key]\n                    try:\n                        kwargs[key] = converter.to_python(value)\n                    except ValueError:\n                        return None\n                return path[match.end() :], (), kwargs\n        # If this is an endpoint, the path should be exactly the same as the\n        # route.\n        elif self._is_endpoint:\n            if self._route == path:\n                return \"\", (), {}\n        # If this isn't an endpoint, the path should start with the route.\n        elif path.startswith(self._route):\n            return path.removeprefix(self._route), (), {}\n        return None\n",
@@ -312,7 +377,9 @@
         "method_end_line": 347,
         "bic_commit_message": "Fixed #35518 -- Optimized RoutePattern by using string operations for converter-less routes.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/urls/resolvers.py"
+        ]
     },
     "25_django/db/backends/base/schema.py": {
         "context": "    def _field_should_be_altered(self, old_field, new_field, ignore=None):\n        if (not (old_field.concrete or old_field.many_to_many)) and (\n            not (new_field.concrete or new_field.many_to_many)\n        ):\n            return False\n        ignore = ignore or set()\n        _, old_path, old_args, old_kwargs = old_field.deconstruct()\n        _, new_path, new_args, new_kwargs = new_field.deconstruct()\n        # Don't alter when:\n        # - changing only a field name\n        # - changing an attribute that doesn't affect the schema\n        # - changing an attribute in the provided set of ignored attributes\n        # - adding only a db_column and the column name is not changed\n        # - db_table does not change for model referenced by foreign keys\n        for attr in ignore.union(old_field.non_db_attrs):\n            old_kwargs.pop(attr, None)\n        for attr in ignore.union(new_field.non_db_attrs):\n            new_kwargs.pop(attr, None)\n        if (\n            not new_field.many_to_many\n            and old_field.remote_field\n            and new_field.remote_field\n            and old_field.remote_field.model._meta.db_table\n            == new_field.remote_field.model._meta.db_table\n        ):\n            old_kwargs.pop(\"to\", None)\n            new_kwargs.pop(\"to\", None)\n        # db_default can take many form but result in the same SQL.\n        if (\n            old_kwargs.get(\"db_default\")\n            and new_kwargs.get(\"db_default\")\n            and self.db_default_sql(old_field) == self.db_default_sql(new_field)\n        ):\n            old_kwargs.pop(\"db_default\")\n            new_kwargs.pop(\"db_default\")\n        return (\n            old_field.concrete\n            and new_field.concrete\n            and (self.quote_name(old_field.column) != self.quote_name(new_field.column))\n        ) or (old_path, old_args, old_kwargs) != (new_path, new_args, new_kwargs)\n",
@@ -327,7 +394,10 @@
         "method_end_line": 1724,
         "bic_commit_message": "Fixed #35453 -- Made ManyToManyField.concrete False.\n\nManyToManyField was already excluded from fields, concrete_fields,\nand local_concrete_fields in Options.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/backends/base/schema.py",
+            "django/db/models/fields/related.py"
+        ]
     },
     "26_django/db/backends/sqlite3/features.py": {
         "context": "    @property\n    def max_query_params(self):\n        \"\"\"\n        SQLite has a variable limit per query. The limit can be changed using\n        the SQLITE_MAX_VARIABLE_NUMBER compile-time option (which defaults to\n        32766) or lowered per connection at run-time with\n        setlimit(SQLITE_LIMIT_VARIABLE_NUMBER, N).\n        \"\"\"\n        return self.connection.connection.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER)\n",
@@ -342,7 +412,9 @@
         "method_end_line": 161,
         "bic_commit_message": "Fixed #36143 -- Made max_query_params respect SQLITE_LIMIT_VARIABLE_NUMBER.\n\nCo-authored-by: Xavier Frankline <xf.xavierfrank@gmail.com>",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/backends/sqlite3/features.py"
+        ]
     },
     "27_django/db/models/expressions.py": {
         "context": "    def replace_expressions(self, replacements):\n        if not replacements:\n            return self\n        if replacement := replacements.get(self):\n            return replacement\n        if not (source_expressions := self.get_source_expressions()):\n            return self\n        clone = self.copy()\n        clone.set_source_expressions(\n            [\n                expr.replace_expressions(replacements) if expr else None\n                for expr in source_expressions\n            ]\n        )\n        return clone\n",
@@ -357,7 +429,9 @@
         "method_end_line": 434,
         "bic_commit_message": "Fixed #36404 -- Fixed Aggregate.filter using OuterRef.\n\nRegression in a76035e925ff4e6d8676c65cb135c74b993b1039.\nThank you to Simon Charette for the review.\n\nco-authored-by: Simon Charette <charette.s@gmail.com>",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/aggregates.py"
+        ]
     },
     "28_django/db/models/query.py": {
         "context": "    def union(self, *other_qs, all=False):\n        # If the query is an EmptyQuerySet, combine all nonempty querysets.\n        if isinstance(self, EmptyQuerySet):\n            qs = [q for q in other_qs if not isinstance(q, EmptyQuerySet)]\n            if not qs:\n                return self\n            if len(qs) == 1:\n                return qs[0]\n            return qs[0]._combinator_query(\"union\", *qs[1:], all=all)\n        return self._combinator_query(\"union\", *other_qs, all=all)\n",
@@ -372,7 +446,9 @@
         "method_end_line": 1554,
         "bic_commit_message": "Fixed #35559 -- Avoided unnecessary query on sliced union of empty queries.\n\nWhile refs #34125 focused on the SQL correctness of slicing of union of\npotentially empty queries it missed an optimization opportunity to avoid\nperforming a query at all when all queries are empty.\n\nThanks Lucidiot for the report.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/sql/compiler.py"
+        ]
     },
     "29_django/db/models/expressions.py": {
         "context": "",
@@ -387,7 +463,9 @@
         "method_end_line": 1623,
         "bic_commit_message": "Fixed #36419 -- Ensured for_save was propagated when resolving expressions.\n\nThe for_save flag wasn't properly propagated when resolving expressions, which\nprevented get_db_prep_save() from being called in some cases. This affected\nfields like JSONField where None would be saved as JSON null instead of SQL NULL.\n\nRegression in 00c690efbc0b10f67924687f24a7b30397bf47d9.\n\nThanks to David Sanders and Simon Charette for reviews.\n\nCo-authored-by: Adam Johnson <me@adamj.eu>",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/expressions.py"
+        ]
     },
     "30_django/db/models/expressions.py": {
         "context": "    def resolve_expression(\n        self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False\n    ):\n        \"\"\"\n        Provide the chance to do any preprocessing or validation before being\n        added to the query.\n\n        Arguments:\n         * query: the backend query implementation\n         * allow_joins: boolean allowing or denying use of joins\n           in this query\n         * reuse: a set of reusable joins for multijoins\n         * summarize: a terminal aggregate clause\n         * for_save: whether this expression about to be used in a save or update\n\n        Return: an Expression to be added to the query.\n        \"\"\"\n        c = self.copy()\n        c.is_summary = summarize\n        source_expressions = [\n            (\n                expr.resolve_expression(query, allow_joins, reuse, summarize)\n                if expr is not None\n                else None\n            )\n            for expr in c.get_source_expressions()\n        ]\n        if not self.allows_composite_expressions and any(\n            isinstance(expr, ColPairs) for expr in source_expressions\n        ):\n            raise ValueError(\n                f\"{self.__class__.__name__} expression does not support \"\n                \"composite primary keys.\"\n            )\n        c.set_source_expressions(source_expressions)\n        return c\n",
@@ -402,7 +480,9 @@
         "method_end_line": 315,
         "bic_commit_message": "Fixed #36117 -- Raised ValueError when providing composite expressions to case / when.\n\nRemove redundant Case and When.resolve_expression to delegate composite\nexpression support to BaseExpression.\n\nThanks Jacob Tyler Walls for the report and test.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/expressions.py"
+        ]
     },
     "31_django/db/models/fields/related_descriptors.py": {
         "context": "    def get_prefetch_querysets(self, instances, querysets=None):\n        if querysets and len(querysets) != 1:\n            raise ValueError(\n                \"querysets argument of get_prefetch_querysets() should have a length \"\n                \"of 1.\"\n            )\n        queryset = querysets[0] if querysets else self.get_queryset()\n        queryset._add_hints(instance=instances[0])\n\n        rel_obj_attr = self.field.get_foreign_related_value\n        instance_attr = self.field.get_local_related_value\n        instances_dict = {instance_attr(inst): inst for inst in instances}\n        related_fields = self.field.foreign_related_fields\n        remote_field = self.field.remote_field\n        queryset = queryset.filter(\n            TupleIn(\n                ColPairs(\n                    queryset.model._meta.db_table,\n                    related_fields,\n                    related_fields,\n                    self.field,\n                ),\n                list(instances_dict),\n            )\n        )\n        # There can be only one object prefetched for each instance so clear\n        # ordering if the query allows it without side effects.\n        queryset.query.clear_ordering()\n\n        # Since we're going to assign directly in the cache,\n        # we must manage the reverse relation cache manually.\n        if not remote_field.multiple:\n            for rel_obj in queryset:\n                instance = instances_dict[rel_obj_attr(rel_obj)]\n                remote_field.set_cached_value(rel_obj, instance)\n        return (\n            queryset,\n            rel_obj_attr,\n            instance_attr,\n            True,\n            self.field.cache_name,\n            False,\n        )\n",
@@ -417,7 +497,9 @@
         "method_end_line": 203,
         "bic_commit_message": "Fixed #36116 -- Optimized multi-column ForwardManyToOne prefetching.\n\nRely on ColPairs and TupleIn which support a single column to be specified\nto avoid special casing ForwardManyToOne.get_prefetch_querysets().\n\nThanks Jacob Walls for the report.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/fields/related_descriptors.py"
+        ]
     },
     "32_django/db/models/sql/query.py": {
         "context": "    def set_group_by(self, allow_aliases=True):\n        \"\"\"\n        Expand the GROUP BY clause required by the query.\n\n        This will usually be the set of all non-aggregate fields in the\n        return data. If the database backend supports grouping by the\n        primary key, and the query would be equivalent, the optimization\n        will be made automatically.\n        \"\"\"\n        if allow_aliases and self.values_select:\n            # If grouping by aliases is allowed assign selected value aliases\n            # by moving them to annotations.\n            group_by_annotations = {}\n            values_select = {}\n            for alias, expr in zip(self.values_select, self.select):\n                if isinstance(expr, Col):\n                    values_select[alias] = expr\n                else:\n                    group_by_annotations[alias] = expr\n            self.annotations = {**group_by_annotations, **self.annotations}\n            self.append_annotation_mask(group_by_annotations)\n            self.select = tuple(values_select.values())\n            self.values_select = tuple(values_select)\n        group_by = list(self.select)\n        for alias, annotation in self.annotation_select.items():\n            if not (group_by_cols := annotation.get_group_by_cols()):\n                continue\n            if allow_aliases and not annotation.contains_aggregate:\n                group_by.append(Ref(alias, annotation))\n            else:\n                group_by.extend(group_by_cols)\n        self.group_by = tuple(group_by)\n",
@@ -432,7 +514,11 @@
         "method_end_line": 2351,
         "bic_commit_message": "Refs #28900 -- Made SELECT respect the order specified by values(*selected).\n\nPreviously the order was always extra_fields + model_fields + annotations with\nrespective local ordering inferred from the insertion order of *selected.\n\nThis commits introduces a new `Query.selected` propery that keeps tracks of the\nglobal select order as specified by on values assignment. This is crucial\nfeature to allow the combination of queries mixing annotations and table\nreferences.\n\nIt also allows the removal of the re-ordering shenanigans perform by\nValuesListIterable in order to re-map the tuples returned from the database\nbackend to the order specified by values_list() as they'll be in the right\norder at query compilation time.\n\nRefs #28553 as the initially reported issue that was only partially fixed\nfor annotations by d6b6e5d0fd4e6b6d0183b4cf6e4bd4f9afc7bf67.\n\nThanks Mariusz Felisiak and Sarah Boyce for review.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/query.py",
+            "django/db/models/sql/compiler.py",
+            "django/db/models/sql/query.py"
+        ]
     },
     "33_django/db/models/sql/query.py": {
         "context": "    def add_annotation(self, annotation, alias, select=True):\n        \"\"\"Add a single annotation expression to the Query.\"\"\"\n        self.check_alias(alias)\n        annotation = annotation.resolve_expression(self, allow_joins=True, reuse=None)\n        if select:\n            self.append_annotation_mask([alias])\n        else:\n            self.set_annotation_mask(set(self.annotation_select).difference({alias}))\n        self.annotations[alias] = annotation\n        if self.selected:\n            self.selected[alias] = alias\n",
@@ -447,7 +533,11 @@
         "method_end_line": 1226,
         "bic_commit_message": "Refs #28900 -- Made SELECT respect the order specified by values(*selected).\n\nPreviously the order was always extra_fields + model_fields + annotations with\nrespective local ordering inferred from the insertion order of *selected.\n\nThis commits introduces a new `Query.selected` propery that keeps tracks of the\nglobal select order as specified by on values assignment. This is crucial\nfeature to allow the combination of queries mixing annotations and table\nreferences.\n\nIt also allows the removal of the re-ordering shenanigans perform by\nValuesListIterable in order to re-map the tuples returned from the database\nbackend to the order specified by values_list() as they'll be in the right\norder at query compilation time.\n\nRefs #28553 as the initially reported issue that was only partially fixed\nfor annotations by d6b6e5d0fd4e6b6d0183b4cf6e4bd4f9afc7bf67.\n\nThanks Mariusz Felisiak and Sarah Boyce for review.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/query.py",
+            "django/db/models/sql/compiler.py",
+            "django/db/models/sql/query.py"
+        ]
     },
     "34_django/db/models/query.py": {
         "context": "    def values_list(self, *fields, flat=False, named=False):\n        if flat and named:\n            raise TypeError(\"'flat' and 'named' can't be used together.\")\n        if flat and len(fields) > 1:\n            raise TypeError(\n                \"'flat' is not valid when values_list is called with more than one \"\n                \"field.\"\n            )\n\n        field_names = {f for f in fields if not hasattr(f, \"resolve_expression\")}\n        _fields = []\n        expressions = {}\n        counter = 1\n        for field in fields:\n            if hasattr(field, \"resolve_expression\"):\n                field_id_prefix = getattr(\n                    field, \"default_alias\", field.__class__.__name__.lower()\n                )\n                while True:\n                    field_id = field_id_prefix + str(counter)\n                    counter += 1\n                    if field_id not in field_names:\n                        break\n                expressions[field_id] = field\n                _fields.append(field_id)\n            else:\n                _fields.append(field)\n\n        clone = self._values(*_fields, **expressions)\n        clone._iterable_class = (\n            NamedValuesListIterable\n            if named\n            else FlatValuesListIterable if flat else ValuesListIterable\n        )\n        return clone\n",
@@ -462,7 +552,11 @@
         "method_end_line": 1400,
         "bic_commit_message": "Refs #28900 -- Made SELECT respect the order specified by values(*selected).\n\nPreviously the order was always extra_fields + model_fields + annotations with\nrespective local ordering inferred from the insertion order of *selected.\n\nThis commits introduces a new `Query.selected` propery that keeps tracks of the\nglobal select order as specified by on values assignment. This is crucial\nfeature to allow the combination of queries mixing annotations and table\nreferences.\n\nIt also allows the removal of the re-ordering shenanigans perform by\nValuesListIterable in order to re-map the tuples returned from the database\nbackend to the order specified by values_list() as they'll be in the right\norder at query compilation time.\n\nRefs #28553 as the initially reported issue that was only partially fixed\nfor annotations by d6b6e5d0fd4e6b6d0183b4cf6e4bd4f9afc7bf67.\n\nThanks Mariusz Felisiak and Sarah Boyce for review.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/query.py",
+            "django/db/models/sql/compiler.py",
+            "django/db/models/sql/query.py"
+        ]
     },
     "35_django/contrib/auth/password_validation.py": {
         "context": "    def validate(self, password, user=None):\n        if len(password) < self.min_length:\n            raise ValidationError(self.get_error_message(), code=\"password_too_short\")\n",
@@ -477,7 +571,9 @@
         "method_end_line": 110,
         "bic_commit_message": "Fixed #35782 -- Allowed overriding password validation error messages.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/contrib/auth/password_validation.py"
+        ]
     },
     "36_django/utils/text.py": {
         "context": "@keep_lazy_text\ndef wrap(text, width):\n    \"\"\"\n    A word-wrap function that preserves existing line breaks. Expects that\n    existing line breaks are posix newlines.\n\n    Preserve all white space except added line breaks consume the space on\n    which they break the line.\n\n    Don't wrap long words, thus the output text may have lines longer than\n    ``width``.\n    \"\"\"\n\n    wrapper = textwrap.TextWrapper(\n        width=width,\n        break_long_words=False,\n        break_on_hyphens=False,\n    )\n    result = []\n    for line in text.splitlines(True):\n        result.extend(wrapper.wrap(line))\n    return \"\\n\".join(result)\n",
@@ -492,7 +588,9 @@
         "method_end_line": 62,
         "bic_commit_message": "Fixed CVE-2025-26699 -- Mitigated potential DoS in wordwrap template filter.\n\nThanks sw0rd1ight for the report.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/utils/text.py"
+        ]
     },
     "37_django/core/mail/message.py": {
         "context": "EmailAlternative = namedtuple(\"Alternative\", [\"content\", \"mimetype\"])\nEmailAttachment = namedtuple(\"Attachment\", [\"filename\", \"content\", \"mimetype\"])\n",
@@ -507,7 +605,9 @@
         "method_end_line": 196,
         "bic_commit_message": "Fixed #35537 -- Changed EmailMessage.attachments and EmailMultiAlternatives.alternatives to use namedtuples.\n\nThis makes it more descriptive to pull out the named fields.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/core/mail/message.py"
+        ]
     },
     "38_django/db/models/query.py": {
         "context": "    def update(self, **kwargs):\n        \"\"\"\n        Update all elements in the current QuerySet, setting all the given\n        fields to the appropriate values.\n        \"\"\"\n        self._not_support_combined_queries(\"update\")\n        if self.query.is_sliced:\n            raise TypeError(\"Cannot update a query once a slice has been taken.\")\n        self._for_write = True\n        query = self.query.chain(sql.UpdateQuery)\n        query.add_update_values(kwargs)\n\n        # Inline annotations in order_by(), if possible.\n        new_order_by = []\n        for col in query.order_by:\n            alias = col\n            descending = False\n            if isinstance(alias, str) and alias.startswith(\"-\"):\n                alias = alias.removeprefix(\"-\")\n                descending = True\n            if annotation := query.annotations.get(alias):\n                if getattr(annotation, \"contains_aggregate\", False):\n                    raise exceptions.FieldError(\n                        f\"Cannot update when ordering by an aggregate: {annotation}\"\n                    )\n                if descending:\n                    annotation = annotation.desc()\n                new_order_by.append(annotation)\n            else:\n                new_order_by.append(col)\n        query.order_by = tuple(new_order_by)\n\n        # Clear any annotations so that they won't be present in subqueries.\n        query.annotations = {}\n        with transaction.mark_for_rollback_on_error(using=self.db):\n            rows = query.get_compiler(self.db).execute_sql(ROW_COUNT)\n        self._result_cache = None\n        return rows\n",
@@ -522,7 +622,10 @@
         "method_end_line": 1259,
         "bic_commit_message": "Refs #28900 -- Made SELECT respect the order specified by values(*selected).\n\nPreviously the order was always extra_fields + model_fields + annotations with\nrespective local ordering inferred from the insertion order of *selected.\n\nThis commits introduces a new `Query.selected` propery that keeps tracks of the\nglobal select order as specified by on values assignment. This is crucial\nfeature to allow the combination of queries mixing annotations and table\nreferences.\n\nIt also allows the removal of the re-ordering shenanigans perform by\nValuesListIterable in order to re-map the tuples returned from the database\nbackend to the order specified by values_list() as they'll be in the right\norder at query compilation time.\n\nRefs #28553 as the initially reported issue that was only partially fixed\nfor annotations by d6b6e5d0fd4e6b6d0183b4cf6e4bd4f9afc7bf67.\n\nThanks Mariusz Felisiak and Sarah Boyce for review.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/sql/compiler.py",
+            "django/db/models/sql/query.py"
+        ]
     },
     "39_django/db/models/fields/related_descriptors.py": {
         "context": "        @property\n        def constrained_target(self):\n            # If the through relation's target field's foreign integrity is\n            # enforced, the query can be performed solely against the through\n            # table as the INNER JOIN'ing against target table is unnecessary.\n            if not self.target_field.db_constraint:\n                return None\n            db = router.db_for_read(self.through, instance=self.instance)\n            if not connections[db].features.supports_foreign_keys:\n                return None\n            hints = {\"instance\": self.instance}\n            manager = self.through._base_manager.db_manager(db, hints=hints)\n            filters = {self.source_field_name: self.instance.pk}\n            # Nullable target rows must be excluded as well as they would have\n            # been filtered out from an INNER JOIN.\n            if self.target_field.null:\n                filters[\"%s__isnull\" % self.target_field_name] = False\n            return manager.filter(**filters)\n",
@@ -537,7 +640,9 @@
         "method_end_line": 1181,
         "bic_commit_message": "Fixed #29725 -- Removed unnecessary join in QuerySet.count() and exists() on a many to many relation.\n\nCo-Authored-By: Shiwei Chen <april.chen.0615@gmail.com>",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/fields/related_descriptors.py"
+        ]
     },
     "40_django/utils/ipv6.py": {
         "context": "def is_valid_ipv6_address(ip_str):\n    \"\"\"\n    Return whether or not the `ip_str` string is a valid IPv6 address.\n    \"\"\"\n    try:\n        _ipv6_address_from_str(ip_str)\n    except ValueError:\n        return False\n    return True\n",
@@ -552,7 +657,9 @@
         "method_end_line": 63,
         "bic_commit_message": "Fixed CVE-2024-56374 -- Mitigated potential DoS in IPv6 validation.\n\nThanks Saravana Kumar for the report, and Sarah Boyce and Mariusz\nFelisiak for the reviews.\n\nCo-authored-by: Natalia <124304+nessita@users.noreply.github.com>",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/utils/ipv6.py"
+        ]
     },
     "41_django/db/models/base.py": {
         "context": "    def refresh_from_db(self, using=None, fields=None, from_queryset=None):\n        \"\"\"\n        Reload field values from the database.\n\n        By default, the reloading happens from the database this instance was\n        loaded from, or by the read router if this instance wasn't loaded from\n        any database. The using parameter will override the default.\n\n        Fields can be used to specify which fields to reload. The fields\n        should be an iterable of field attnames. If fields is None, then\n        all non-deferred fields are reloaded.\n\n        When accessing deferred fields of an instance, the deferred loading\n        of the field will call this method.\n        \"\"\"\n        if fields is None:\n            self._prefetched_objects_cache = {}\n        else:\n            prefetched_objects_cache = getattr(self, \"_prefetched_objects_cache\", ())\n            fields = set(fields)\n            for field in fields.copy():\n                if field in prefetched_objects_cache:\n                    del prefetched_objects_cache[field]\n                    fields.remove(field)\n            if not fields:\n                return\n            if any(LOOKUP_SEP in f for f in fields):\n                raise ValueError(\n                    'Found \"%s\" in fields argument. Relations and transforms '\n                    \"are not allowed in fields.\" % LOOKUP_SEP\n                )\n\n        if from_queryset is None:\n            hints = {\"instance\": self}\n            from_queryset = self.__class__._base_manager.db_manager(using, hints=hints)\n        elif using is not None:\n            from_queryset = from_queryset.using(using)\n\n        db_instance_qs = from_queryset.filter(pk=self.pk)\n\n        # Use provided fields, if not set then reload all non-deferred fields.\n        deferred_fields = self.get_deferred_fields()\n        if fields is not None:\n            db_instance_qs = db_instance_qs.only(*fields)\n        elif deferred_fields:\n            fields = {\n                f.attname\n                for f in self._meta.concrete_fields\n                if f.attname not in deferred_fields\n            }\n            db_instance_qs = db_instance_qs.only(*fields)\n\n        db_instance = db_instance_qs.get()\n        non_loaded_fields = db_instance.get_deferred_fields()\n        for field in self._meta.concrete_fields:\n            if field.attname in non_loaded_fields:\n                # This field wasn't refreshed - skip ahead.\n                continue\n            setattr(self, field.attname, getattr(db_instance, field.attname))\n            # Clear or copy cached foreign keys.\n            if field.is_relation:\n                if field.is_cached(db_instance):\n                    field.set_cached_value(self, field.get_cached_value(db_instance))\n                elif field.is_cached(self):\n                    field.delete_cached_value(self)\n\n        # Clear cached relations.\n        for field in self._meta.related_objects:\n            if (fields is None or field.name in fields) and field.is_cached(self):\n                field.delete_cached_value(self)\n\n        # Clear cached private relations.\n        for field in self._meta.private_fields:\n            if (\n                (fields is None or field.name in fields)\n                and field.is_relation\n                and field.is_cached(self)\n            ):\n                field.delete_cached_value(self)\n\n        self._state.db = db_instance._state.db\n",
@@ -567,7 +674,9 @@
         "method_end_line": 765,
         "bic_commit_message": "Fixed #35044 -- Avoided clearing reverse relations and private fields when accessing deferred fields.\n\nRegression in a7b5ad8b19a08d7d57302ece74f6e26d2887fd9f for reverse\nrelations and possibly in 123b1d3fcf79f091573c40be6da7113a6ef35b62 for\nprivate fields.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/base.py"
+        ]
     },
     "43_django/contrib/humanize/templatetags/humanize.py": {
         "context": "@register.filter(is_safe=True)\ndef intcomma(value, use_l10n=True):\n    \"\"\"\n    Convert an integer to a string containing commas every three digits.\n    For example, 3000 becomes '3,000' and 45000 becomes '45,000'.\n    \"\"\"\n    if use_l10n:\n        try:\n            if not isinstance(value, (float, Decimal)):\n                value = int(value)\n        except (TypeError, ValueError):\n            return intcomma(value, False)\n        else:\n            return number_format(value, use_l10n=True, force_grouping=True)\n    result = str(value)\n    match = re.match(r\"-?\\d+\", result)\n    if match:\n        prefix = match[0]\n        prefix_with_commas = re.sub(r\"\\d{3}\", r\"\\g<0>,\", prefix[::-1])[::-1]\n        result = prefix_with_commas + result[len(prefix) :]\n    return result\n",
@@ -582,7 +691,9 @@
         "method_end_line": 85,
         "bic_commit_message": "Fixed CVE-2024-24680 -- Mitigated potential DoS in intcomma template filter.\n\nThanks Seokchan Yoon for the report.\n\nCo-authored-by: Mariusz Felisiak <felisiak.mariusz@gmail.com>\nCo-authored-by: Natalia <124304+nessita@users.noreply.github.com>\nCo-authored-by: Shai Berger <shai@platonix.com>",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/contrib/humanize/templatetags/humanize.py"
+        ]
     },
     "44_django/contrib/admin/options.py": {
         "context": "    def lookup_allowed(self, lookup, value, request=None):\n        from django.contrib.admin.filters import SimpleListFilter\n\n        model = self.model\n        # Check FKey lookups that are allowed, so that popups produced by\n        # ForeignKeyRawIdWidget, on the basis of ForeignKey.limit_choices_to,\n        # are allowed to work.\n        for fk_lookup in model._meta.related_fkey_lookups:\n            # As ``limit_choices_to`` can be a callable, invoke it here.\n            if callable(fk_lookup):\n                fk_lookup = fk_lookup()\n            if (lookup, value) in widgets.url_params_from_lookup_dict(\n                fk_lookup\n            ).items():\n                return True\n\n        relation_parts = []\n        prev_field = None\n        parts = lookup.split(LOOKUP_SEP)\n        for part in parts:\n            try:\n                field = model._meta.get_field(part)\n            except FieldDoesNotExist:\n                # Lookups on nonexistent fields are ok, since they're ignored\n                # later.\n                break\n            if not getattr(field, \"path_infos\", None):\n                # This is not a relational field, so further parts\n                # must be transforms.\n                break\n            if (\n                not prev_field\n                or (field.is_relation and field not in model._meta.parents.values())\n                or (\n                    prev_field.is_relation\n                    and model._meta.auto_field is None\n                    and part not in getattr(prev_field, \"to_fields\", [])\n                )\n            ):\n                relation_parts.append(part)\n            prev_field = field\n            model = field.path_infos[-1].to_opts.model\n\n        if not relation_parts or len(parts) == 1:\n            # Either a local field filter, or no fields at all.\n            return True\n        valid_lookups = {self.date_hierarchy}\n        # RemovedInDjango60Warning: when the deprecation ends, replace with:\n        # for filter_item in self.get_list_filter(request):\n        list_filter = (\n            self.get_list_filter(request) if request is not None else self.list_filter\n        )\n        for filter_item in list_filter:\n            if isinstance(filter_item, type) and issubclass(\n                filter_item, SimpleListFilter\n            ):\n                valid_lookups.add(filter_item.parameter_name)\n            elif isinstance(filter_item, (list, tuple)):\n                valid_lookups.add(filter_item[0])\n            else:\n                valid_lookups.add(filter_item)\n\n        # Is it a valid relational lookup?\n        return not {\n            LOOKUP_SEP.join(relation_parts),\n            LOOKUP_SEP.join(relation_parts + [part]),\n        }.isdisjoint(valid_lookups)\n",
@@ -597,7 +708,9 @@
         "method_end_line": 519,
         "bic_commit_message": "Fixed #35020 -- Fixed ModelAdmin.lookup_allowed() for non-autofield primary keys.\n\nThanks Joshua Goodwin for the report.\n\nRegression in 45ecd9acca9b36093e274f47b6877a5f79108d9e.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/contrib/admin/options.py"
+        ]
     },
     "45_django/contrib/admin/options.py": {
         "context": "    def lookup_allowed(self, lookup, value, request=None):\n        from django.contrib.admin.filters import SimpleListFilter\n\n        model = self.model\n        # Check FKey lookups that are allowed, so that popups produced by\n        # ForeignKeyRawIdWidget, on the basis of ForeignKey.limit_choices_to,\n        # are allowed to work.\n        for fk_lookup in model._meta.related_fkey_lookups:\n            # As ``limit_choices_to`` can be a callable, invoke it here.\n            if callable(fk_lookup):\n                fk_lookup = fk_lookup()\n            if (lookup, value) in widgets.url_params_from_lookup_dict(\n                fk_lookup\n            ).items():\n                return True\n\n        relation_parts = []\n        prev_field = None\n        for part in lookup.split(LOOKUP_SEP):\n            try:\n                field = model._meta.get_field(part)\n            except FieldDoesNotExist:\n                # Lookups on nonexistent fields are ok, since they're ignored\n                # later.\n                break\n            if not getattr(field, \"path_infos\", None):\n                # This is not a relational field, so further parts\n                # must be transforms.\n                break\n            if (\n                not prev_field\n                or (field.is_relation and field not in model._meta.parents.values())\n                or (\n                    prev_field.is_relation\n                    and model._meta.auto_field is None\n                    and part not in getattr(prev_field, \"to_fields\", [])\n                )\n            ):\n                relation_parts.append(part)\n            prev_field = field\n            model = field.path_infos[-1].to_opts.model\n\n        if not relation_parts:\n            # Either a local field filter, or no fields at all.\n            return True\n        valid_lookups = {self.date_hierarchy}\n        # RemovedInDjango60Warning: when the deprecation ends, replace with:\n        # for filter_item in self.get_list_filter(request):\n        list_filter = (\n            self.get_list_filter(request) if request is not None else self.list_filter\n        )\n        for filter_item in list_filter:\n            if isinstance(filter_item, type) and issubclass(\n                filter_item, SimpleListFilter\n            ):\n                valid_lookups.add(filter_item.parameter_name)\n            elif isinstance(filter_item, (list, tuple)):\n                valid_lookups.add(filter_item[0])\n            else:\n                valid_lookups.add(filter_item)\n\n        # Is it a valid relational lookup?\n        return not {\n            LOOKUP_SEP.join(relation_parts),\n            LOOKUP_SEP.join(relation_parts + [part]),\n        }.isdisjoint(valid_lookups)\n",
@@ -612,7 +725,9 @@
         "method_end_line": 518,
         "bic_commit_message": "Fixed #35020 -- Fixed ModelAdmin.lookup_allowed() for non-autofield primary keys.\n\nThanks Joshua Goodwin for the report.\n\nRegression in 45ecd9acca9b36093e274f47b6877a5f79108d9e.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/contrib/admin/options.py"
+        ]
     },
     "46_django/contrib/admin/options.py": {
         "context": "    def lookup_allowed(self, lookup, value, request=None):\n        from django.contrib.admin.filters import SimpleListFilter\n\n        model = self.model\n        # Check FKey lookups that are allowed, so that popups produced by\n        # ForeignKeyRawIdWidget, on the basis of ForeignKey.limit_choices_to,\n        # are allowed to work.\n        for fk_lookup in model._meta.related_fkey_lookups:\n            # As ``limit_choices_to`` can be a callable, invoke it here.\n            if callable(fk_lookup):\n                fk_lookup = fk_lookup()\n            if (lookup, value) in widgets.url_params_from_lookup_dict(\n                fk_lookup\n            ).items():\n                return True\n\n        relation_parts = []\n        prev_field = None\n        for part in lookup.split(LOOKUP_SEP):\n            try:\n                field = model._meta.get_field(part)\n            except FieldDoesNotExist:\n                # Lookups on nonexistent fields are ok, since they're ignored\n                # later.\n                break\n            if not prev_field or (\n                prev_field.is_relation\n                and field not in model._meta.parents.values()\n                and field is not model._meta.auto_field\n                and (\n                    model._meta.auto_field is None\n                    or part not in getattr(prev_field, \"to_fields\", [])\n                )\n            ):\n                relation_parts.append(part)\n            if not getattr(field, \"path_infos\", None):\n                # This is not a relational field, so further parts\n                # must be transforms.\n                break\n            prev_field = field\n            model = field.path_infos[-1].to_opts.model\n\n        if len(relation_parts) <= 1:\n            # Either a local field filter, or no fields at all.\n            return True\n        valid_lookups = {self.date_hierarchy}\n        # RemovedInDjango60Warning: when the deprecation ends, replace with:\n        # for filter_item in self.get_list_filter(request):\n        list_filter = (\n            self.get_list_filter(request) if request is not None else self.list_filter\n        )\n        for filter_item in list_filter:\n            if isinstance(filter_item, type) and issubclass(\n                filter_item, SimpleListFilter\n            ):\n                valid_lookups.add(filter_item.parameter_name)\n            elif isinstance(filter_item, (list, tuple)):\n                valid_lookups.add(filter_item[0])\n            else:\n                valid_lookups.add(filter_item)\n\n        # Is it a valid relational lookup?\n        return not {\n            LOOKUP_SEP.join(relation_parts),\n            LOOKUP_SEP.join(relation_parts + [part]),\n        }.isdisjoint(valid_lookups)\n",
@@ -627,7 +742,9 @@
         "method_end_line": 518,
         "bic_commit_message": "Fixed #28384 -- Fixed ModelAdmin.lookup_allowed() for OneToOneField primary keys and nested relations.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/contrib/admin/options.py"
+        ]
     },
     "48_django/db/models/sql/query.py": {
         "context": "def get_child_with_renamed_prefix(prefix, replacement, child):\n    if isinstance(child, Node):\n        return rename_prefix_from_q(prefix, replacement, child)\n    if isinstance(child, tuple):\n        lhs, rhs = child\n        lhs = lhs.replace(prefix, replacement, 1)\n        if not isinstance(rhs, F) and hasattr(rhs, \"resolve_expression\"):\n            rhs = get_child_with_renamed_prefix(prefix, replacement, rhs)\n        return lhs, rhs\n\n    if isinstance(child, F):\n        child = child.copy()\n        child.name = child.name.replace(prefix, replacement, 1)\n    elif hasattr(child, \"resolve_expression\"):\n        child = child.copy()\n        child.set_source_expressions(\n            [\n                get_child_with_renamed_prefix(prefix, replacement, grand_child)\n                for grand_child in child.get_source_expressions()\n            ]\n        )\n    return child\n",
@@ -642,7 +759,11 @@
         "method_end_line": 114,
         "bic_commit_message": "Fixed #33766 -- Resolved FilteredRelation.condition at referencing time.\n\nThe previous implementation resolved condition at Join compilation time\nwhich required introducing a specialized expression resolving mode to\nalter the join reuse logic solely during that phase.\n\nFilteredRelation.condition is now resolved when the relation is first\nreferenced which maintains the existing behavior while allowing the\nremoval of the specialized resolving mode and address an issue where\nconditions couldn't spawn new joins.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/models/query_utils.py",
+            "django/db/models/sql/datastructures.py",
+            "django/db/models/sql/query.py"
+        ]
     },
     "49_django/db/models/lookups.py": {
         "context": "    def as_sql(self, compiler, connection):\n        if not isinstance(self.rhs, bool):\n            raise ValueError(\n                \"The QuerySet value for an isnull lookup must be True or False.\"\n            )\n        sql, params = self.process_lhs(compiler, connection)\n        if self.rhs:\n            return \"%s IS NULL\" % sql, params\n        else:\n            return \"%s IS NOT NULL\" % sql, params\n",
@@ -657,7 +778,10 @@
         "method_end_line": 615,
         "bic_commit_message": "Refs #33308 -- Used get_db_prep_value() to adapt JSONFields.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/backends/base/operations.py",
+            "django/db/models/fields/json.py"
+        ]
     },
     "50_django/db/models/expressions.py": {
         "context": "    def relabeled_clone(self, relabels):\n        return self\n",
@@ -672,6 +796,10 @@
         "method_end_line": 1205,
         "bic_commit_message": "Fixed #34176 -- Fixed grouping by ambiguous aliases.\n\nRegression in b7b28c7c189615543218e81319473888bc46d831.\n\nRefs #31377.\n\nThanks Shai Berger for the report and reviews.\n\ntest_aggregation_subquery_annotation_values_collision() has been\nupdated as queries that are explicitly grouped by a subquery should\nalways be grouped by it and not its outer columns even if its alias\ncollides with referenced table columns. This was not possible to\naccomplish at the time 10866a10 landed because we didn't have compiler\nlevel handling of colliding aliases.",
         "bug_inducing_changes": "",
-        "changed_files": []
+        "changed_files": [
+            "django/db/backends/base/features.py",
+            "django/db/models/sql/compiler.py",
+            "django/db/models/sql/query.py"
+        ]
     }
 }
