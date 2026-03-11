@@ -223,18 +223,23 @@ class RegMiner4APR(AbstractBenchmark):
         if not compile_error_flag:
             # Running the test cases
             cmd = "cd " + validation_dir + ";"
-            cmd += 'timeout 720 regminer4apr test' # Test the program
-            command_result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
-            result_message = command_result.stdout.decode('utf-8')
-            logger.debug(command_result.stdout.decode('utf-8'))
+            cmd += 'regminer4apr test' # Test the program
+            try:
+                command_result = subprocess.run(cmd, 
+                                                stdout=subprocess.PIPE, 
+                                                stderr=subprocess.PIPE, 
+                                                shell=True,
+                                                timeout=720)
+                result_message = command_result.stdout.decode('utf-8')
+                logger.debug(command_result.stdout.decode('utf-8'))
 
-            if command_result.returncode == 0 and '- Failed test cases: 0' in result_message:
-                running_result["status"] = "[Plausible]"
-                running_result["error_message"] = None
-            elif command_result.returncode == 1:
-                running_result["status"] = "[FE]"
-                running_result["error_message"] = extract_test_results(result_message)
-            else:
+                if command_result.returncode == 0 and '- Failed test cases: 0' in result_message:
+                    running_result["status"] = "[Plausible]"
+                    running_result["error_message"] = None
+                elif command_result.returncode == 1:
+                    running_result["status"] = "[FE]"
+                    running_result["error_message"] = extract_test_results(result_message)
+            except subprocess.TimeoutExpired:
                 running_result["status"] = "[Timeout]"
                 running_result["error_message"] = None
         return running_result

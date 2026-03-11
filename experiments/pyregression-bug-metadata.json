@@ -28,7 +28,7 @@
         "method_start_line": 556,
         "method_end_line": 706,
         "bic_commit_message": "API: mode.nan_is_na to consistently distinguish NaN-vs-NA (#62040)",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -24,0 +25,7 @@\n+\n+        elif hasattr(value, \"__arrow_array__\"):\n+            # e.g. StringArray\n+            if copy:\n+                value = value.copy()\n+            pa_array = value.__arrow_array__()\n+\n@@ -77,0 +85,21 @@\n+            mask = None\n+            if is_nan_na():\n+                try:\n+                    arr_value = np.asarray(value)\n+                    if arr_value.ndim > 1:\n+                        # e.g. test_fixed_size_list we have list data.  ndim > 1\n+                        #  means there were no scalar (NA) entries.\n+                        mask = np.zeros(len(value), dtype=np.bool_)\n+                    else:\n+                        mask = isna(arr_value)\n+                except ValueError:\n+                    # Ragged data that numpy raises on\n+                    arr_value = construct_1d_object_array_from_listlike(value)\n+                    mask = isna(arr_value)\n+            elif (\n+                getattr(value, \"dtype\", None) is None or value.dtype.kind not in \"iumMf\"\n+            ):\n+                arr_value = np.asarray(value, dtype=object)\n+                # similar to isna(value) but exclude NaN, NaT, nat-like, nan-like\n+                mask = is_pdna_or_none(arr_value)  # type: ignore[assignment]\n+\n@@ -79 +107 @@\n-                pa_array = pa.array(value, type=pa_type, from_pandas=True)\n+                pa_array = pa.array(value, type=pa_type, mask=mask)\n@@ -82 +110 @@\n-                pa_array = pa.array(value, from_pandas=True)\n+                pa_array = pa.array(value, mask=mask)\n@@ -90 +118 @@\n-                pa_array = pa.array(value, type=pa_type, from_pandas=True)\n+                pa_array = pa.array(value, type=pa_type)\n",
         "changed_files": [
             "pandas/_config/__init__.py",
             "pandas/_libs/missing.pyi",
@@ -51,7 +51,7 @@
         "method_start_line": 1033,
         "method_end_line": 1058,
         "bic_commit_message": "API: mode.nan_is_na to consistently distinguish NaN-vs-NA (#62040)",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -18 +18,8 @@\n-        return self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)+\n+        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n+        if is_nan_na() and result.dtype.kind == \"f\":\n+            parr = result._pa_array\n+            mask = pc.is_nan(parr).to_numpy()\n+            arr = pc.replace_with_mask(parr, mask, pa.scalar(None, type=parr.type))\n+            result = type(self)(arr)\n+        return result",
         "changed_files": [
             "pandas/_config/__init__.py",
             "pandas/_libs/missing.pyi",
@@ -75,7 +75,7 @@
         "method_start_line": 449,
         "method_end_line": 514,
         "bic_commit_message": "REF: Remove dynamic docstrings from option methods (#57710)\n\n* REF: Remove dynamic docstrings from option methods\r\n\r\n* Fix arguments\r\n\r\n* Reuse\r\n\r\n* Fix drop duplicate section, numpydoc valudation\r\n\r\n* Fix formatting",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -0,0 +1,41 @@\n+def option_context(*args) -> Generator[None, None, None]:\n+    \"\"\"\n+    Context manager to temporarily set options in a ``with`` statement.\n+\n+    Parameters\n+    ----------\n+    *args : str | object\n+        An even amount of arguments provided in pairs which will be\n+        interpreted as (pattern, value) pairs.\n+\n+    Returns\n+    -------\n+    None\n+        No return value.\n+\n+    Notes\n+    -----\n+    For all available options, please view the :ref:`User Guide <options.available>`\n+    or use ``pandas.describe_option()``.\n+\n+    Examples\n+    --------\n+    >>> from pandas import option_context\n+    >>> with option_context(\"display.max_rows\", 10, \"display.max_columns\", 5):\n+    ...     pass\n+    \"\"\"\n+    if len(args) % 2 != 0 or len(args) < 2:\n+        raise ValueError(\n+            \"Provide an even amount of arguments as \"\n+            \"option_context(pat, val, pat, val...).\"\n+        )\n+\n+    ops = tuple(zip(args[::2], args[1::2]))\n+    try:\n+        undo = tuple((pat, get_option(pat)) for pat, val in ops)\n+        for pat, val in ops:\n+            set_option(pat, val)\n+        yield\n+    finally:\n+        for pat, val in undo:\n+            set_option(pat, val)",
         "changed_files": [
             "pandas/_config/config.py"
         ]
@@ -179,7 +179,7 @@
         "method_start_line": 1277,
         "method_end_line": 1463,
         "bic_commit_message": "Fix for issue #57268 - ENH: Preserve input start/end type in interval\u2026 (#57399)\n\n* Fix for issue #57268 - ENH: Preserve input start/end type in interval_range\r\n\r\n* issue #57268 - github actions resolution\r\n\r\n* Use generated datatype from breaks\r\n\r\n* Ruff - Pre-commit issue fix\r\n\r\n* Fix for issue #57268 - floating point support\r\n\r\n* int - float dtype compatability\r\n\r\n* whatsnew documentation update\r\n\r\n* OS based varaible access\r\n\r\n* Fixing failed unit test cases\r\n\r\n* pytest - interval passsed\r\n\r\n* Python backwards compatability\r\n\r\n* Pytest\r\n\r\n* Fixing PyLint and mypy issues\r\n\r\n* dtype specification\r\n\r\n* Conditional statement simplification\r\n\r\n* remove redundant code blocks\r\n\r\n* Changing whatsnew to interval section\r\n\r\n* Passing expected in parameterize\r\n\r\n* Update doc/source/whatsnew/v3.0.0.rst\r\n\r\nCo-authored-by: Matthew Roeschke <10647082+mroeschke@users.noreply.github.com>\r\n\r\n* Update pandas/core/indexes/interval.py\r\n\r\nCo-authored-by: Matthew Roeschke <10647082+mroeschke@users.noreply.github.com>\r\n\r\n---------\r\n\r\nCo-authored-by: Matthew Roeschke <10647082+mroeschke@users.noreply.github.com>",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -141,0 +142 @@\n+        dtype: np.dtype = np.dtype(\"int64\")\n@@ -142,0 +144,12 @@\n+            if (\n+                isinstance(start, (float, np.float16))\n+                or isinstance(end, (float, np.float16))\n+                or isinstance(freq, (float, np.float16))\n+            ):\n+                dtype = np.dtype(\"float64\")\n+            elif (\n+                isinstance(start, (np.integer, np.floating))\n+                and isinstance(end, (np.integer, np.floating))\n+                and start.dtype == end.dtype\n+            ):\n+                dtype = start.dtype\n@@ -144,0 +158 @@\n+            breaks = maybe_downcast_numeric(breaks, dtype)\n@@ -163 +177 @@\n-                np.dtype(\"int64\"),\n+                dtype,\n@@ -172 +186,6 @@\n-    return IntervalIndex.from_breaks(breaks, name=name, closed=closed)+    return IntervalIndex.from_breaks(\n+        breaks,\n+        name=name,\n+        closed=closed,\n+        dtype=IntervalDtype(subtype=breaks.dtype, closed=closed),\n+    )",
         "changed_files": [
             "pandas/core/indexes/interval.py"
         ]
@@ -235,7 +235,7 @@
         "method_start_line": 711,
         "method_end_line": 748,
         "bic_commit_message": "Fixed #21204 -- Tracked field deferrals by field instead of models.\n\nThis ensures field deferral works properly when a model is involved\nmore than once in the same query with a distinct deferral mask.",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -0,0 +1,36 @@\n+    def _get_defer_select_mask(self, opts, mask, select_mask=None):\n+        if select_mask is None:\n+            select_mask = {}\n+        select_mask[opts.pk] = {}\n+        # All concrete fields that are not part of the defer mask must be\n+        # loaded. If a relational field is encountered it gets added to the\n+        # mask for it be considered if `select_related` and the cycle continues\n+        # by recursively caling this function.\n+        for field in opts.concrete_fields:\n+            field_mask = mask.pop(field.name, None)\n+            if field_mask is None:\n+                select_mask.setdefault(field, {})\n+            elif field_mask:\n+                if not field.is_relation:\n+                    raise FieldError(next(iter(field_mask)))\n+                field_select_mask = select_mask.setdefault(field, {})\n+                related_model = field.remote_field.model._meta.concrete_model\n+                self._get_defer_select_mask(\n+                    related_model._meta, field_mask, field_select_mask\n+                )\n+        # Remaining defer entries must be references to reverse relationships.\n+        # The following code is expected to raise FieldError if it encounters\n+        # a malformed defer entry.\n+        for field_name, field_mask in mask.items():\n+            if filtered_relation := self._filtered_relations.get(field_name):\n+                relation = opts.get_field(filtered_relation.relation_name)\n+                field_select_mask = select_mask.setdefault((field_name, relation), {})\n+                field = relation.field\n+            else:\n+                field = opts.get_field(field_name).field\n+                field_select_mask = select_mask.setdefault(field, {})\n+            related_model = field.model._meta.concrete_model\n+            self._get_defer_select_mask(\n+                related_model._meta, field_mask, field_select_mask\n+            )\n+        return select_mask",
         "changed_files": [
             "django/db/models/sql/compiler.py",
             "django/db/models/sql/query.py"
@@ -253,7 +253,7 @@
         "method_start_line": 588,
         "method_end_line": 611,
         "bic_commit_message": "REGR: query raising for all NaT in object column (#57488)",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -17 +17 @@\n-                v, copy=False, index=self.index, name=k\n+                v, copy=False, index=self.index, name=k, dtype=self.dtypes[k]\n",
         "changed_files": [
             "pandas/core/generic.py"
         ]
@@ -290,7 +290,7 @@
         "method_start_line": 2115,
         "method_end_line": 2135,
         "bic_commit_message": "BUG: IntervalIndex.unique() only contains the first interval if all interval borders are negative (#61920)\n\nCo-authored-by: Khemkaran <sunny@Khemkaran-MacBook-Pro.local>",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -5,0 +6,2 @@\n+        # GH#38353 instead of casting to object, operating on a\n+        # complex128 ndarray is much more performant.\n@@ -11,0 +14 @@\n+            comb = comb.view(\"complex128\")[:, 0]\n@@ -13 +16,3 @@\n-            comb = np.concatenate([left, right], axis=1)\n+            comb = (np.array(left.ravel(), dtype=\"complex128\")) + (\n+                1j * np.array(right.ravel(), dtype=\"complex128\")\n+            )\n",
         "changed_files": [
             "pandas/core/arrays/interval.py"
         ]
@@ -307,7 +307,7 @@
         "method_start_line": 848,
         "method_end_line": 887,
         "bic_commit_message": "API: value_counts to consistently maintain order of input (#59745)\n\n* API: value_counts to consistently maintain order of input\r\n\r\n* Docs\r\n\r\n* Cleanup\r\n\r\n* Test & docs fixups\r\n\r\n* Refine whatsnew\r\n\r\n* Refine whatsnew",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -5,0 +6 @@\n+        sorts: list[bool],\n@@ -6,0 +8,2 @@\n+        consistent_sorting = all(sorts[0] == sort for sort in sorts[1:])\n+        sort_in_compress = sorts[0] if consistent_sorting else False\n@@ -9 +12 @@\n-        ob_ids, obs_group_ids = compress_group_index(group_index, sort=self._sort)\n+        ob_ids, obs_group_ids = compress_group_index(group_index, sort=sort_in_compress)\n@@ -19,0 +23,15 @@\n+        if not consistent_sorting:\n+            # Sort by the levels where the corresponding sort argument is True\n+            n_levels = len(sorts)\n+            drop_levels = [\n+                n_levels - idx\n+                for idx, sort in enumerate(reversed(sorts), 1)\n+                if not sort\n+            ]\n+            if len(drop_levels) > 0:\n+                sorter = ob_index._drop_level_numbers(drop_levels).argsort()\n+            else:\n+                sorter = ob_index.argsort()\n+            ob_index = ob_index.take(sorter)\n+            _, index = np.unique(sorter, return_index=True)\n+            ob_ids = np.where(ob_ids == -1, -1, index.take(ob_ids))\n",
         "changed_files": [
             "pandas/core/groupby/groupby.py",
             "pandas/core/groupby/ops.py"
@@ -359,7 +359,7 @@
         "method_start_line": 4438,
         "method_end_line": 4492,
         "bic_commit_message": "Avoid reindexing values assigned to a multi-index when cols_droplevel contains empty values  (#62404)",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -17,0 +18,5 @@\n+                if (\n+                    not isinstance(cols_droplevel, MultiIndex)\n+                    and not cols_droplevel.any()\n+                ):\n+                    return\n",
         "changed_files": [
             "pandas/core/frame.py"
         ]
@@ -393,7 +393,7 @@
         "method_start_line": 1684,
         "method_end_line": 1724,
         "bic_commit_message": "Fixed #35453 -- Made ManyToManyField.concrete False.\n\nManyToManyField was already excluded from fields, concrete_fields,\nand local_concrete_fields in Options.",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -2 +2,3 @@\n-        if not old_field.concrete and not new_field.concrete:\n+        if (not (old_field.concrete or old_field.many_to_many)) and (\n+            not (new_field.concrete or new_field.many_to_many)\n+        ):\n@@ -34,2 +36,4 @@\n-        return self.quote_name(old_field.column) != self.quote_name(\n-            new_field.column\n+        return (\n+            old_field.concrete\n+            and new_field.concrete\n+            and (self.quote_name(old_field.column) != self.quote_name(new_field.column))\n",
         "changed_files": [
             "django/db/backends/base/schema.py",
             "django/db/models/fields/related.py"
@@ -411,7 +411,7 @@
         "method_start_line": 152,
         "method_end_line": 161,
         "bic_commit_message": "Fixed #36143 -- Made max_query_params respect SQLITE_LIMIT_VARIABLE_NUMBER.\n\nCo-authored-by: Xavier Frankline <xf.xavierfrank@gmail.com>",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -0,0 +1,8 @@\n+    def max_query_params(self):\n+        \"\"\"\n+        SQLite has a variable limit per query. The limit can be changed using\n+        the SQLITE_MAX_VARIABLE_NUMBER compile-time option (which defaults to\n+        999 in versions < 3.32.0 or 32766 in newer versions) or lowered per\n+        connection at run-time with setlimit(SQLITE_LIMIT_VARIABLE_NUMBER, N).\n+        \"\"\"\n+        return self.connection.connection.getlimit(sqlite3.SQLITE_LIMIT_VARIABLE_NUMBER)",
         "changed_files": [
             "django/db/backends/sqlite3/features.py"
         ]
@@ -496,7 +496,7 @@
         "method_start_line": 160,
         "method_end_line": 203,
         "bic_commit_message": "Fixed #36116 -- Optimized multi-column ForwardManyToOne prefetching.\n\nRely on ColPairs and TupleIn which support a single column to be specified\nto avoid special casing ForwardManyToOne.get_prefetch_querysets().\n\nThanks Jacob Walls for the report.",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -13 +13 @@\n-        related_field = self.field.foreign_related_fields[0]\n+        related_fields = self.field.foreign_related_fields\n@@ -15,15 +15,11 @@\n-\n-        # FIXME: This will need to be revisited when we introduce support for\n-        # composite fields. In the meantime we take this practical approach to\n-        # solve a regression on 1.6 when the reverse manager is hidden\n-        # (related_name ends with a '+'). Refs #21410.\n-        # The check for len(...) == 1 is a special case that allows the query\n-        # to be join-less and smaller. Refs #21760.\n-        if remote_field.hidden or len(self.field.foreign_related_fields) == 1:\n-            query = {\n-                \"%s__in\"\n-                % related_field.name: {instance_attr(inst)[0] for inst in instances}\n-            }\n-        else:\n-            query = {\"%s__in\" % self.field.related_query_name(): instances}\n-        queryset = queryset.filter(**query)\n+        queryset = queryset.filter(\n+            TupleIn(\n+                ColPairs(\n+                    queryset.model._meta.db_table,\n+                    related_fields,\n+                    related_fields,\n+                    self.field,\n+                ),\n+                list(instances_dict),\n+            )\n+        )\n",
         "changed_files": [
             "django/db/models/fields/related_descriptors.py"
         ]
@@ -532,7 +532,7 @@
         "method_start_line": 1215,
         "method_end_line": 1226,
         "bic_commit_message": "Refs #28900 -- Made SELECT respect the order specified by values(*selected).\n\nPreviously the order was always extra_fields + model_fields + annotations with\nrespective local ordering inferred from the insertion order of *selected.\n\nThis commits introduces a new `Query.selected` propery that keeps tracks of the\nglobal select order as specified by on values assignment. This is crucial\nfeature to allow the combination of queries mixing annotations and table\nreferences.\n\nIt also allows the removal of the re-ordering shenanigans perform by\nValuesListIterable in order to re-map the tuples returned from the database\nbackend to the order specified by values_list() as they'll be in the right\norder at query compilation time.\n\nRefs #28553 as the initially reported issue that was only partially fixed\nfor annotations by d6b6e5d0fd4e6b6d0183b4cf6e4bd4f9afc7bf67.\n\nThanks Mariusz Felisiak and Sarah Boyce for review.",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -8,7 +8,4 @@\n-            annotation_mask = (\n-                value\n-                for value in dict.fromkeys(self.annotation_select)\n-                if value != alias\n-            )\n-            self.set_annotation_mask(annotation_mask)\n-        self.annotations[alias] = annotation+            self.set_annotation_mask(set(self.annotation_select).difference({alias}))\n+        self.annotations[alias] = annotation\n+        if self.selected:\n+            self.selected[alias] = alias",
         "changed_files": [
             "django/db/models/query.py",
             "django/db/models/sql/compiler.py",
@@ -570,7 +570,7 @@
         "method_start_line": 107,
         "method_end_line": 110,
         "bic_commit_message": "Fixed #35782 -- Allowed overriding password validation error messages.",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -3,11 +3 @@\n-            raise ValidationError(\n-                ngettext(\n-                    \"This password is too short. It must contain at least \"\n-                    \"%(min_length)d character.\",\n-                    \"This password is too short. It must contain at least \"\n-                    \"%(min_length)d characters.\",\n-                    self.min_length,\n-                ),\n-                code=\"password_too_short\",\n-                params={\"min_length\": self.min_length},\n-            )+            raise ValidationError(self.get_error_message(), code=\"password_too_short\")",
         "changed_files": [
             "django/contrib/auth/password_validation.py"
         ]
@@ -587,7 +587,7 @@
         "method_start_line": 40,
         "method_end_line": 62,
         "bic_commit_message": "Fixed CVE-2025-26699 -- Mitigated potential DoS in wordwrap template filter.\n\nThanks sw0rd1ight for the report.",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -13,18 +13,9 @@\n-    def _generator():\n-        for line in text.splitlines(True):  # True keeps trailing linebreaks\n-            max_width = min((line.endswith(\"\\n\") and width + 1 or width), width)\n-            while len(line) > max_width:\n-                space = line[: max_width + 1].rfind(\" \") + 1\n-                if space == 0:\n-                    space = line.find(\" \") + 1\n-                    if space == 0:\n-                        yield line\n-                        line = \"\"\n-                        break\n-                yield \"%s\\n\" % line[: space - 1]\n-                line = line[space:]\n-                max_width = min((line.endswith(\"\\n\") and width + 1 or width), width)\n-            if line:\n-                yield line\n-\n-    return \"\".join(_generator())+    wrapper = textwrap.TextWrapper(\n+        width=width,\n+        break_long_words=False,\n+        break_on_hyphens=False,\n+    )\n+    result = []\n+    for line in text.splitlines(True):\n+        result.extend(wrapper.wrap(line))\n+    return \"\\n\".join(result)",
         "changed_files": [
             "django/utils/text.py"
         ]
@@ -639,7 +639,7 @@
         "method_start_line": 1163,
         "method_end_line": 1181,
         "bic_commit_message": "Fixed #29725 -- Removed unnecessary join in QuerySet.count() and exists() on a many to many relation.\n\nCo-Authored-By: Shiwei Chen <april.chen.0615@gmail.com>",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -0,0 +1,17 @@\n+        def constrained_target(self):\n+            # If the through relation's target field's foreign integrity is\n+            # enforced, the query can be performed solely against the through\n+            # table as the INNER JOIN'ing against target table is unnecessary.\n+            if not self.target_field.db_constraint:\n+                return None\n+            db = router.db_for_read(self.through, instance=self.instance)\n+            if not connections[db].features.supports_foreign_keys:\n+                return None\n+            hints = {\"instance\": self.instance}\n+            manager = self.through._base_manager.db_manager(db, hints=hints)\n+            filters = {self.source_field_name: self.instance.pk}\n+            # Nullable target rows must be excluded as well as they would have\n+            # been filtered out from an INNER JOIN.\n+            if self.target_field.null:\n+                filters[\"%s__isnull\" % self.target_field_name] = False\n+            return manager.filter(**filters)",
         "changed_files": [
             "django/db/models/fields/related_descriptors.py"
         ]
@@ -656,7 +656,7 @@
         "method_start_line": 54,
         "method_end_line": 63,
         "bic_commit_message": "Fixed CVE-2024-56374 -- Mitigated potential DoS in IPv6 validation.\n\nThanks Saravana Kumar for the report, and Sarah Boyce and Mariusz\nFelisiak for the reviews.\n\nCo-authored-by: Natalia <124304+nessita@users.noreply.github.com>",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -6 +6 @@\n-        ipaddress.IPv6Address(ip_str)\n+        _ipv6_address_from_str(ip_str)\n",
         "changed_files": [
             "django/utils/ipv6.py"
         ]
@@ -673,7 +673,7 @@
         "method_start_line": 684,
         "method_end_line": 765,
         "bic_commit_message": "Fixed #35044 -- Avoided clearing reverse relations and private fields when accessing deferred fields.\n\nRegression in a7b5ad8b19a08d7d57302ece74f6e26d2887fd9f for reverse\nrelations and possibly in 123b1d3fcf79f091573c40be6da7113a6ef35b62 for\nprivate fields.",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -69 +69 @@\n-            if field.is_cached(self):\n+            if (fields is None or field.name in fields) and field.is_cached(self):\n@@ -74 +74,5 @@\n-            if field.is_relation and field.is_cached(self):\n+            if (\n+                (fields is None or field.name in fields)\n+                and field.is_relation\n+                and field.is_cached(self)\n+            ):\n",
         "changed_files": [
             "django/db/models/base.py"
         ]
@@ -690,7 +690,7 @@
         "method_start_line": 64,
         "method_end_line": 85,
         "bic_commit_message": "Fixed CVE-2024-24680 -- Mitigated potential DoS in intcomma template filter.\n\nThanks Seokchan Yoon for the report.\n\nCo-authored-by: Mariusz Felisiak <felisiak.mariusz@gmail.com>\nCo-authored-by: Natalia <124304+nessita@users.noreply.github.com>\nCo-authored-by: Shai Berger <shai@platonix.com>",
-        "bug_inducing_changes": "",
+        "bug_inducing_changes": "@@ -14,6 +14,7 @@\n-    orig = str(value)\n-    new = re.sub(r\"^(-?\\d+)(\\d{3})\", r\"\\g<1>,\\g<2>\", orig)\n-    if orig == new:\n-        return new\n-    else:\n-        return intcomma(new, use_l10n)+    result = str(value)\n+    match = re.match(r\"-?\\d+\", result)\n+    if match:\n+        prefix = match[0]\n+        prefix_with_commas = re.sub(r\"\\d{3}\", r\"\\g<0>,\", prefix[::-1])[::-1]\n+        result = prefix_with_commas + result[len(prefix) :]\n+    return result",
         "changed_files": [
             "django/contrib/humanize/templatetags/humanize.py"
         ]
