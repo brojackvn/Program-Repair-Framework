@@ -118,6 +118,10 @@ class RegMiner4APR(AbstractBenchmark):
             if 'bic_commit_message' in dataset[id]:
                 bic_commit_message = dataset[id]['bic_commit_message']
 
+            changed_files = None
+            if 'changed_files' in dataset[id]:
+                changed_files = dataset[id]['changed_files']
+
             info[data_id] = {
                 'bug_id': bug_id,
                 'src_dir': src_dir, # environment directory + Bug ID + BUGGY
