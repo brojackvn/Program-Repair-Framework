@@ -22,6 +22,12 @@ class Logger():
         elif args.option == "prompt-apr-with-bic":
             samples = args.sample_size
             log_name = f'PromptAPR-BIC_{model_name}_{dataset_name}_{data_id}_{samples}_{now.strftime("%d-%m-%H:%M")}'
+        elif args.option == "conversational-apr-with-bic" and args.additional_information == "cm":
+            samples = args.attempts
+            log_name = f'ConversationalAPR-CM_{model_name}_{dataset_name}_{data_id}_{samples}_{now.strftime("%d-%m-%H:%M")}'
+        elif args.option == "conversational-apr-with-bic" and args.additional_information == "cc":
+            samples = args.attempts
+            log_name = f'ConversationalAPR-CC_{model_name}_{dataset_name}_{data_id}_{samples}_{now.strftime("%d-%m-%H:%M")}'
         elif args.option == "conversational-apr-with-bic":
             samples = args.attempts
             log_name = f'ConversationalAPR-BIC_{model_name}_{dataset_name}_{data_id}_{samples}_{now.strftime("%d-%m-%H:%M")}'
