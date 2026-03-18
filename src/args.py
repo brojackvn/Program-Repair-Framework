@@ -69,4 +69,12 @@ prompt_repair_args(prompt_repair_with_bic_parser)
 
 # Conversational repair with BIC subparser
 conversational_repair_with_bic_parser = subparsers.add_parser("conversational-apr-with-bic", help="Conversational repair with BIC")
+# Add extra argument ONLY for this mode
+conversational_repair_with_bic_parser.add_argument(
+    "--additional-information",
+    type=str,
+    default=None,
+    required=False,
+    help="Additional information for BIC-based conversational repair."
+)
 conversational_repair_args(conversational_repair_with_bic_parser)

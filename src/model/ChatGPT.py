@@ -94,8 +94,13 @@ class ChatGPT(AbstractModel):
             - patch: Decoded patch
         '''
         # Regular expression to capture code between triple backticks with 'java'
-        code_blocks = re.findall(r'```java\s*(.*?)\s*```', patch, re.DOTALL)
-        if not code_blocks:
-            return None
-        else:
-            return max(code_blocks, key=len)
+        if "```java" in patch:
+            code_blocks = re.findall(r'```java\s*(.*?)\s*```', patch, re.DOTALL)
+            if not code_blocks:
+                return None
+            else:
+                return max(code_blocks, key=len)
+        elif "```python" in patch:
+            match = re.search(r"```python\n(.*?)```", patch, re.DOTALL)
+            result = match.group(1)
+            return result    

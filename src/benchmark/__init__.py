@@ -1,8 +1,11 @@
+from src.benchmark.PyRegression import PyRegression
 from src.benchmark.RegMiner4APR import RegMiner4APR
 from src.utils.logger import logger
 
 def create_dataset(dataset, input_dir, mapping_dir, env_dir, tmp_dir):
     if dataset == "regminer4apr":
         return RegMiner4APR(input_dir, mapping_dir, env_dir, tmp_dir)
+    elif dataset == "pyregression":
+        return PyRegression(input_dir, mapping_dir, env_dir)
     else:
         logger.error("Invalid dataset name: {}".format(dataset))
