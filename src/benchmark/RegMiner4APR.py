@@ -134,7 +134,8 @@ class RegMiner4APR(AbstractBenchmark):
                 'buggy_loc': buggy_loc,
                 'method_loc': method_loc,
                 'bug_inducing_changes': bug_inducing_changes,
-                'bic_commit_message': bic_commit_message
+                'bic_commit_message': bic_commit_message,
+                'changed_files': changed_files
             }
         return info
 
