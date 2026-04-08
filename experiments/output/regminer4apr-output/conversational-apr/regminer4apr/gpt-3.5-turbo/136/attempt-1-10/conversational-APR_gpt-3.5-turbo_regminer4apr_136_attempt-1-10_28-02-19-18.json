@@ -1,0 +1,112 @@
+[
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    }\n\n    int minLength = Math.min(row.length, indexesToWrite.length);\n    for (int i = 0; i < minLength; i++) {\n        if (indexesToWrite[i] != -1) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            919
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexExclusion: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[1, 2, 3, 4, 5, 6]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: java.lang.AssertionError: expected [A,C\nV1,V3\nV1,V3\nV1,V3\n] but found [A,B,B\nV1,B,V2\nV1,B,V2\nV1,B,V2\n]",
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnlyToString: com.univocity.parsers.common.TextWritingException: Error writing input rows\nInternal state when error was thrown: recordCount=1",
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: java.lang.AssertionError: expected [A,C\nV1,V3\nV1,V3\nV1,V3\n] but found [A,B,B\nV1,B,V2\nV1,B,V2\nV1,B,V2\n]",
+            "com.univocity.parsers.csv.CsvWriterTest#writeSelectedColumnOnly: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=1, recordData=[E350, 3000.00]",
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexSelection: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[1, 2]",
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnly: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=1, recordData=[E350, 3000.00]"
+        ],
+        "validation_time": 73.0416009426117,
+        "response": "To fix the bugs in the `fillOutputRow` function, we need to address the following issues:\n\n1. Check if the `outputRow` is initialized before accessing its length.\n2. Ensure that the `outputRow` is properly copied and updated.\n3. Avoid accessing array elements beyond their bounds to prevent `ArrayIndexOutOfBoundsException`.\n\nHere is the corrected function:\n\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    }\n\n    int minLength = Math.min(row.length, indexesToWrite.length);\n    for (int i = 0; i < minLength; i++) {\n        if (indexesToWrite[i] != -1) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}\n```\n\nThis updated function will address the issues and prevent errors like `ArrayIndexOutOfBoundsException` while writing rows to `outputRow`.",
+        "input_tokens": 321,
+        "output_tokens": 212,
+        "total_cost": 0.000745
+    },
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    }\n\n    for (int i = 0; i < indexesToWrite.length; i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < row.length) {\n            outputRow[i] = row[indexesToWrite[i]];\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            918
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnlyToString: java.lang.AssertionError: expected [  E350  3000.00] but found [E350 3000.00]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: java.lang.AssertionError: expected [A,C\nV1,V3\nV1,V3\nV1,V3\n] but found [A,C,C\nV1,V3,C\nV1,V3,C\nV1,V3,C\n]",
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexExclusion: java.lang.AssertionError: expected [1,,2,3,,4,5,6] but found [1,3,4,6,5,6]",
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: java.lang.AssertionError: expected [A,C\nV1,V3\nV1,V3\nV1,V3\n] but found [A,C,C\nV1,V3,C\nV1,V3,C\nV1,V3,C\n]",
+            "com.univocity.parsers.csv.CsvWriterTest#writeSelectedColumnOnly: java.lang.AssertionError: Inconsistency found on row 0: lists don't have the same size expected [5] but found [2]",
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexSelection: java.lang.AssertionError: expected [,2,,,1] but found [1,2]",
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnly: java.lang.AssertionError: Inconsistency found on row 0: lists don't have the same size expected [5] but found [2]"
+        ],
+        "validation_time": 72.15834379196167,
+        "response": "To address the issues in the `fillOutputRow` function based on the provided error messages, we need to update the function as follows:\n\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    }\n\n    for (int i = 0; i < indexesToWrite.length; i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < row.length) {\n            outputRow[i] = row[indexesToWrite[i]];\n        }\n    }\n}\n```\n\nThis updated function makes sure to copy the `row` array if `outputRow` is null or needs resizing. It then writes the values from the `row` array to the `outputRow` array at the indexes specified by `indexesToWrite`, avoiding writing values beyond the bounds of either array.\n\nPlease try this updated version of the function and test it with the provided test cases. Let me know if further adjustments are needed.",
+        "input_tokens": 991,
+        "output_tokens": 227,
+        "total_cost": 0.0014449999999999999
+    },
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    }\n\n    Arrays.fill(outputRow, null); // Clear the outputRow before filling the values\n\n    for (int i = 0; i < indexesToWrite.length; i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < row.length) {\n            outputRow[i] = row[indexesToWrite[i]];\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            920
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexExclusion: java.lang.AssertionError: expected [1,,2,3,,4,5,6] but found [1,3,4,6,,]",
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexSelection: java.lang.AssertionError: expected [,2,,,1] but found [,2]",
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnlyToString: java.lang.AssertionError: expected [  E350  3000.00] but found [ ]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]",
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]",
+            "com.univocity.parsers.csv.CsvWriterTest#writeSelectedColumnOnly: java.lang.AssertionError: Inconsistency found on row 0: lists don't have the same size expected [5] but found [2]",
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnly: java.lang.AssertionError: Inconsistency found on row 0: lists don't have the same size expected [5] but found [2]"
+        ],
+        "validation_time": 68.34135055541992,
+        "response": "To address the issues in the `fillOutputRow` function based on the provided error messages, we need to update the function as follows:\n\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    }\n\n    Arrays.fill(outputRow, null); // Clear the outputRow before filling the values\n\n    for (int i = 0; i < indexesToWrite.length; i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < row.length) {\n            outputRow[i] = row[indexesToWrite[i]];\n        }\n    }\n}\n```\n\nThis updated function now clears the `outputRow` array before filling it with values from the `row` array. This ensures that any previous values in `outputRow` are overwritten correctly. Additionally, it addresses the issue of inconsistent array sizes by initializing the `outputRow` with `null` values before filling the desired indexes with values from the `row` array.\n\nPlease try this updated version of the function and test it with the provided test cases. Let me know if further adjustments are needed.",
+        "input_tokens": 1636,
+        "output_tokens": 258,
+        "total_cost": 0.002152
+    },
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    }\n\n    Arrays.fill(outputRow, null); // Clear the outputRow before filling the values\n\n    for (int i = 0; i < Math.min(indexesToWrite.length, row.length); i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < row.length) {\n            outputRow[indexesToWrite[i]] = row[indexesToWrite[i]];\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            920
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexSelection: java.lang.AssertionError: expected [,2,,,1] but found [,2]",
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnlyToString: java.lang.AssertionError: expected [  E350  3000.00] but found [ ]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]",
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexExclusion: java.lang.AssertionError: expected [1,,2,3,,4,5,6] but found [1,,3,4,,6]",
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]",
+            "com.univocity.parsers.csv.CsvWriterTest#writeSelectedColumnOnly: java.lang.AssertionError: Inconsistency found on row 0: lists don't have the same size expected [5] but found [2]",
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnly: java.lang.AssertionError: Inconsistency found on row 0: lists don't have the same size expected [5] but found [2]"
+        ],
+        "validation_time": 71.21678900718689,
+        "response": "To address the remaining issues in the `fillOutputRow` function, we need to ensure proper handling of cases where the `outputRow` array is larger than the `row` array. Here is the updated function to resolve these issues:\n\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    }\n\n    Arrays.fill(outputRow, null); // Clear the outputRow before filling the values\n\n    for (int i = 0; i < Math.min(indexesToWrite.length, row.length); i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < row.length) {\n            outputRow[indexesToWrite[i]] = row[indexesToWrite[i]];\n        }\n    }\n}\n```\n\nThis updated function ensures that we only iterate up to the minimum length between `indexesToWrite` and `row` arrays to prevent writing beyond the bounds of the arrays. It also properly handles cases where `row` is smaller than `outputRow` by copying `row` to `outputRow` when necessary.\n\nPlease try this updated version of the function and test it with the provided test cases. Let me know if there are any more issues to address.",
+        "input_tokens": 2270,
+        "output_tokens": 280,
+        "total_cost": 0.00283
+    },
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    } else {\n        Arrays.fill(outputRow, null);\n        for (int i = 0; i < indexesToWrite.length && i < row.length; i++) {\n            if (indexesToWrite[i] >= 0 && indexesToWrite[i] < outputRow.length) {\n                outputRow[indexesToWrite[i]] = row[i];\n            }\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            919
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnlyToString: java.lang.AssertionError: expected [  E350  3000.00] but found [E350 3000.00]",
+            "com.univocity.parsers.tsv.TsvWriterTest#writeSelectedColumnOnly: java.lang.AssertionError: Inconsistency found on row 0: lists don't have the same size expected [5] but found [2]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: java.lang.AssertionError: expected [A,C\nV1,V3\nV1,V3\nV1,V3\n] but found [A,B,C\nV1,,V2\nV1,,V2\nV1,,V2\n]",
+            "com.univocity.parsers.csv.CsvWriterTest#writeSelectedColumnOnly: java.lang.AssertionError: Inconsistency found on row 0: lists don't have the same size expected [5] but found [2]",
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexExclusion: java.lang.AssertionError: expected [1,,2,3,,4,5,6] but found [1,2,3,4,5,6]",
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: java.lang.AssertionError: expected [A,C\nV1,V3\nV1,V3\nV1,V3\n] but found [A,B,C\nV1,,V2\nV1,,V2\nV1,,V2\n]",
+            "com.univocity.parsers.csv.CsvWriterTest#testWritingWithIndexSelection: java.lang.AssertionError: expected [,2,,,1] but found [1,2]"
+        ],
+        "validation_time": 75.02500081062317,
+        "response": "To address the remaining issues in the `fillOutputRow` function, we need to ensure that the values are correctly written to the `outputRow` array based on the indexes specified in `indexesToWrite`. Additionally, we need to handle cases where the size of `indexesToWrite` is larger than the size of the `row` array.\n\nHere is an updated version of the function that should resolve the issues:\n\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (outputRow == null || !columnReorderingEnabled || row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(row, row.length);\n    } else {\n        Arrays.fill(outputRow, null);\n        for (int i = 0; i < indexesToWrite.length && i < row.length; i++) {\n            if (indexesToWrite[i] >= 0 && indexesToWrite[i] < outputRow.length) {\n                outputRow[indexesToWrite[i]] = row[i];\n            }\n        }\n    }\n}\n```\n\nIn this updated version, we copy the `row` array to `outputRow` if necessary, and then fill the `outputRow` array with values from the `row` array based on the indexes specified in `indexesToWrite`. The loop now iterates up to the minimum of the lengths of `indexesToWrite` and `row` array to prevent accessing out-of-bound indexes.\n\nPlease try this updated version of the function and test it with the provided test cases. Let me know if there are any more issues to address.",
+        "input_tokens": 2925,
+        "output_tokens": 322,
+        "total_cost": 0.003569
+    }
+]

@@ -1,0 +1,32 @@
+[
+    {
+        "patch": "static UriComponentsBuilder getBuilder() {\n    HttpServletRequest request = getCurrentRequest();\n    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpRequest(new ServletServerHttpRequest(request));\n\n    // special case handling for X-Forwarded-Ssl:\n    // apply it, but only if X-Forwarded-Proto is unset.\n\n    String forwardedSsl = request.getHeader(\"X-Forwarded-Ssl\");\n    ForwardedHeader forwarded = ForwardedHeader.of(request.getHeader(ForwardedHeader.NAME));\n    String proto = hasText(forwarded.getProto()) ? forwarded.getProto() : request.getHeader(\"X-Forwarded-Proto\");\n\n    if (!hasText(proto) && hasText(forwardedSsl) && forwardedSsl.equalsIgnoreCase(\"on\")) {\n        builder.scheme(\"https\");\n        builder.port(443); // Set the default HTTPS port\n    }\n\n    return builder;\n}",
+        "patched_method_loc": [
+            264,
+            282
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "org.springframework.hateoas.mvc.ControllerLinkBuilderUnitTest#createsLinkRelativeToContextRoot: java.lang.AssertionError: Expected : a string ending with \"/ctx/people\"\n     but: was \"http://localhost/ctx/foo/people\""
+        ],
+        "validation_time": 90.13000416755676,
+        "response": "To fix the bug causing the test failure, we need to ensure that the `builder` generates the correct URL based on the `X-Forwarded-Ssl` header condition. Here is the corrected version of the `getBuilder` function:\n\n```java\nstatic UriComponentsBuilder getBuilder() {\n    HttpServletRequest request = getCurrentRequest();\n    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpRequest(new ServletServerHttpRequest(request));\n\n    // special case handling for X-Forwarded-Ssl:\n    // apply it, but only if X-Forwarded-Proto is unset.\n\n    String forwardedSsl = request.getHeader(\"X-Forwarded-Ssl\");\n    ForwardedHeader forwarded = ForwardedHeader.of(request.getHeader(ForwardedHeader.NAME));\n    String proto = hasText(forwarded.getProto()) ? forwarded.getProto() : request.getHeader(\"X-Forwarded-Proto\");\n\n    if (!hasText(proto) && hasText(forwardedSsl) && forwardedSsl.equalsIgnoreCase(\"on\")) {\n        builder.scheme(\"https\");\n        builder.port(443); // Set the default HTTPS port\n    }\n\n    return builder;\n}\n```\n\nBy explicitly setting the HTTPS scheme and default port (443) in the `builder`, we ensure that the URL generated will be correct when the condition for `X-Forwarded-Ssl` is met. This should fix the failing test case related to creating a link relative to the context root.",
+        "input_tokens": 268,
+        "output_tokens": 288,
+        "total_cost": 0.000844
+    },
+    {
+        "patch": "static UriComponentsBuilder getBuilder() {\n    HttpServletRequest request = getCurrentRequest();\n    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpRequest(new ServletServerHttpRequest(request));\n\n    // special case handling for X-Forwarded-Ssl:\n    // apply it, but only if X-Forwarded-Proto is unset.\n\n    String forwardedSsl = request.getHeader(\"X-Forwarded-Ssl\");\n    ForwardedHeader forwarded = ForwardedHeader.of(request.getHeader(ForwardedHeader.NAME));\n    String proto = hasText(forwarded.getProto()) ? forwarded.getProto() : request.getHeader(\"X-Forwarded-Proto\");\n\n    if (!hasText(proto) && hasText(forwardedSsl) && forwardedSsl.equalsIgnoreCase(\"on\")) {\n        builder.scheme(\"https\");\n        builder.port(443); // Set the default HTTPS port\n    }\n\n    // Ensure that the context root is included in the URL\n    String contextPath = request.getContextPath();\n    if (contextPath != null && !contextPath.isEmpty()) {\n        builder.replacePath(contextPath);\n    }\n\n    return builder;\n}",
+        "patched_method_loc": [
+            264,
+            288
+        ],
+        "status": "[Plausible]",
+        "error_message": null,
+        "validation_time": 89.68527674674988,
+        "response": "I apologize for the oversight. To ensure that the URL generated includes the correct context root (\"/ctx\") without additional path segments like \"/foo\", we can modify the function as follows:\n\n```java\nstatic UriComponentsBuilder getBuilder() {\n    HttpServletRequest request = getCurrentRequest();\n    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpRequest(new ServletServerHttpRequest(request));\n\n    // special case handling for X-Forwarded-Ssl:\n    // apply it, but only if X-Forwarded-Proto is unset.\n\n    String forwardedSsl = request.getHeader(\"X-Forwarded-Ssl\");\n    ForwardedHeader forwarded = ForwardedHeader.of(request.getHeader(ForwardedHeader.NAME));\n    String proto = hasText(forwarded.getProto()) ? forwarded.getProto() : request.getHeader(\"X-Forwarded-Proto\");\n\n    if (!hasText(proto) && hasText(forwardedSsl) && forwardedSsl.equalsIgnoreCase(\"on\")) {\n        builder.scheme(\"https\");\n        builder.port(443); // Set the default HTTPS port\n    }\n\n    // Ensure that the context root is included in the URL\n    String contextPath = request.getContextPath();\n    if (contextPath != null && !contextPath.isEmpty()) {\n        builder.replacePath(contextPath);\n    }\n\n    return builder;\n}\n```\n\nBy including the logic to replace the path with the context root retrieved from the current request, the URL generated by the `builder` should now correctly end with \"/ctx/people\" as expected. This should fix the failing test case related to creating a link relative to the context root.",
+        "input_tokens": 635,
+        "output_tokens": 317,
+        "total_cost": 0.0012690000000000002
+    }
+]

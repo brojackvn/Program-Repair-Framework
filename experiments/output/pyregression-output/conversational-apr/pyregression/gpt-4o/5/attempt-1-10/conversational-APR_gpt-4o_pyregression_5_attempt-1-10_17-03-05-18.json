@@ -1,0 +1,82 @@
+[
+    {
+        "patch": "        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                    and not is_bool_dtype(dtype)\n                )\n                or (dtype.type is str and (np.object_ in dtypes_set or str in dtypes_set))\n            )\n",
+        "patched_method_loc": [
+            5150,
+            5162
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "- Test: pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes::test_select_dtype_object_and_str - Type: AssertionError: DataFrame are different\n\nDataFrame shape mismatch\n[left]:  (3, 2)\n[right]: (3, 1) - Message: self = <pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes object at 0x7f92c2d2a0d0>\nusing_infer_string = True\n\n    def test_select_dtype_object_and_str(self, using_infer_string):\n        # https://github.com/pandas-dev/pandas/issues/61916\n        df = DataFrame(\n            {\n                \"a\": [\"a\", \"b\", \"c\"],\n                \"b\": [1, 2, 3],\n                \"c\": pd.array([\"a\", \"b\", \"c\"], dtype=\"string\"),\n            }\n        )\n    \n        # with \"object\" -> only select the object or default str dtype column\n        result = df.select_dtypes(include=[\"object\"])\n        expected = df[[\"a\"]]\n>       tm.assert_frame_equal(result, expected)\nE       AssertionError: DataFrame are "
+        ],
+        "validation_time": 2.6043617725372314,
+        "response": "```python\n        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                    and not is_bool_dtype(dtype)\n                )\n                or (dtype.type is str and (np.object_ in dtypes_set or str in dtypes_set))\n            )\n```",
+        "input_tokens": 556,
+        "output_tokens": 132,
+        "total_cost": 0.00271
+    },
+    {
+        "patch": "        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n            if dtype.type is str and np.object_ in dtypes_set:\n                # Special handling for str and object dtypes\n                return True\n            if str in dtypes_set and dtype.kind in {'O', 'U', 'S'}:\n                # Include if str is explicitly in dtypes_set\n                return True\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                    and not is_bool_dtype(dtype)\n                )\n            )\n",
+        "patched_method_loc": [
+            5150,
+            5167
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "- Test: pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes::test_select_dtype_object_and_str - Type: AssertionError: DataFrame are different\n\nDataFrame shape mismatch\n[left]:  (3, 2)\n[right]: (3, 1) - Message: self = <pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes object at 0x7f2ccab29d10>\nusing_infer_string = True\n\n    def test_select_dtype_object_and_str(self, using_infer_string):\n        # https://github.com/pandas-dev/pandas/issues/61916\n        df = DataFrame(\n            {\n                \"a\": [\"a\", \"b\", \"c\"],\n                \"b\": [1, 2, 3],\n                \"c\": pd.array([\"a\", \"b\", \"c\"], dtype=\"string\"),\n            }\n        )\n    \n        # with \"object\" -> only select the object or default str dtype column\n        result = df.select_dtypes(include=[\"object\"])\n        expected = df[[\"a\"]]\n>       tm.assert_frame_equal(result, expected)\nE       AssertionError: DataFrame are "
+        ],
+        "validation_time": 2.6562740802764893,
+        "response": "```python\n        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n            if dtype.type is str and np.object_ in dtypes_set:\n                # Special handling for str and object dtypes\n                return True\n            if str in dtypes_set and dtype.kind in {'O', 'U', 'S'}:\n                # Include if str is explicitly in dtypes_set\n                return True\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                    and not is_bool_dtype(dtype)\n                )\n            )\n```",
+        "input_tokens": 964,
+        "output_tokens": 176,
+        "total_cost": 0.00417
+    },
+    {
+        "patch": "        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n\n            if is_bool_dtype(dtype):\n                # Exclude boolean dtype\n                return False\n            \n            if dtype.kind in {'O', 'U', 'S'}:\n                # Handle object, unicode, and string kinds\n                return any(dt in dtypes_set for dt in (np.object_, str))\n\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                )\n            )\n",
+        "patched_method_loc": [
+            5150,
+            5169
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "- Test: pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes::test_select_dtype_object_and_str - Type: AssertionError: DataFrame are different\n\nDataFrame shape mismatch\n[left]:  (3, 2)\n[right]: (3, 1) - Message: self = <pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes object at 0x7fedc8924910>\nusing_infer_string = True\n\n    def test_select_dtype_object_and_str(self, using_infer_string):\n        # https://github.com/pandas-dev/pandas/issues/61916\n        df = DataFrame(\n            {\n                \"a\": [\"a\", \"b\", \"c\"],\n                \"b\": [1, 2, 3],\n                \"c\": pd.array([\"a\", \"b\", \"c\"], dtype=\"string\"),\n            }\n        )\n    \n        # with \"object\" -> only select the object or default str dtype column\n        result = df.select_dtypes(include=[\"object\"])\n        expected = df[[\"a\"]]\n>       tm.assert_frame_equal(result, expected)\nE       AssertionError: DataFrame are "
+        ],
+        "validation_time": 2.6406502723693848,
+        "response": "```python\n        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n\n            if is_bool_dtype(dtype):\n                # Exclude boolean dtype\n                return False\n            \n            if dtype.kind in {'O', 'U', 'S'}:\n                # Handle object, unicode, and string kinds\n                return any(dt in dtypes_set for dt in (np.object_, str))\n\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                )\n            )\n```",
+        "input_tokens": 1413,
+        "output_tokens": 162,
+        "total_cost": 0.0051525
+    },
+    {
+        "patch": "        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n\n            if is_bool_dtype(dtype):\n                # Exclude boolean dtype\n                return False\n\n            # Check for object or string dtype\n            if np.object_ in dtypes_set or str in dtypes_set:\n                if dtype.kind in {'O'}:\n                    return True\n\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                )\n            )\n",
+        "patched_method_loc": [
+            5150,
+            5170
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "- Test: pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes::test_select_dtype_object_and_str - Type: AssertionError: DataFrame are different\n\nDataFrame shape mismatch\n[left]:  (3, 2)\n[right]: (3, 1) - Message: self = <pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes object at 0x7f415ed34350>\nusing_infer_string = True\n\n    def test_select_dtype_object_and_str(self, using_infer_string):\n        # https://github.com/pandas-dev/pandas/issues/61916\n        df = DataFrame(\n            {\n                \"a\": [\"a\", \"b\", \"c\"],\n                \"b\": [1, 2, 3],\n                \"c\": pd.array([\"a\", \"b\", \"c\"], dtype=\"string\"),\n            }\n        )\n    \n        # with \"object\" -> only select the object or default str dtype column\n        result = df.select_dtypes(include=[\"object\"])\n        expected = df[[\"a\"]]\n>       tm.assert_frame_equal(result, expected)\nE       AssertionError: DataFrame are "
+        ],
+        "validation_time": 2.7301056385040283,
+        "response": "```python\n        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n\n            if is_bool_dtype(dtype):\n                # Exclude boolean dtype\n                return False\n\n            # Check for object or string dtype\n            if np.object_ in dtypes_set or str in dtypes_set:\n                if dtype.kind in {'O'}:\n                    return True\n\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                )\n            )\n```",
+        "input_tokens": 1846,
+        "output_tokens": 157,
+        "total_cost": 0.006185
+    },
+    {
+        "patch": "        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n\n            if is_bool_dtype(dtype):\n                # Exclude boolean dtype\n                return False\n\n            if np.object_ in dtypes_set and dtype.kind == 'O':\n                # Match object dtypes if 'object' is in the set\n                return True\n\n            if str in dtypes_set and isinstance(dtype, pd.StringDtype):\n                # Match string extension dtype if 'str' is in the set\n                return True\n\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                )\n            )\n",
+        "patched_method_loc": [
+            5150,
+            5173
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "- Test: pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes::test_select_dtype_object_and_str - Type: AssertionError: DataFrame are different\n\nDataFrame shape mismatch\n[left]:  (3, 2)\n[right]: (3, 1) - Message: self = <pandas.tests.frame.methods.test_select_dtypes.TestSelectDtypes object at 0x7fc57cf35750>\nusing_infer_string = True\n\n    def test_select_dtype_object_and_str(self, using_infer_string):\n        # https://github.com/pandas-dev/pandas/issues/61916\n        df = DataFrame(\n            {\n                \"a\": [\"a\", \"b\", \"c\"],\n                \"b\": [1, 2, 3],\n                \"c\": pd.array([\"a\", \"b\", \"c\"], dtype=\"string\"),\n            }\n        )\n    \n        # with \"object\" -> only select the object or default str dtype column\n        result = df.select_dtypes(include=[\"object\"])\n        expected = df[[\"a\"]]\n>       tm.assert_frame_equal(result, expected)\nE       AssertionError: DataFrame are "
+        ],
+        "validation_time": 2.6443326473236084,
+        "response": "```python\n        def dtype_predicate(dtype: DtypeObj, dtypes_set) -> bool:\n            # GH 46870: BooleanDtype._is_numeric == True but should be excluded\n            dtype = dtype if not isinstance(dtype, ArrowDtype) else dtype.numpy_dtype\n\n            if is_bool_dtype(dtype):\n                # Exclude boolean dtype\n                return False\n\n            if np.object_ in dtypes_set and dtype.kind == 'O':\n                # Match object dtypes if 'object' is in the set\n                return True\n\n            if str in dtypes_set and isinstance(dtype, pd.StringDtype):\n                # Match string extension dtype if 'str' is in the set\n                return True\n\n            return (\n                issubclass(dtype.type, tuple(dtypes_set))\n                or (\n                    np.number in dtypes_set\n                    and getattr(dtype, \"_is_numeric\", False)\n                )\n            )\n```",
+        "input_tokens": 2274,
+        "output_tokens": 189,
+        "total_cost": 0.007575
+    }
+]

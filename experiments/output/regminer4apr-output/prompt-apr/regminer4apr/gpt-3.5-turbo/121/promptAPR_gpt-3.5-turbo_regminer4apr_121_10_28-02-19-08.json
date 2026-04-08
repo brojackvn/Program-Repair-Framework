@@ -1,0 +1,168 @@
+[
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n                && (val == null || (val.equals(\"\") && Attribute.isBooleanAttribute(key))))) {\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val == null ? EmptyString : val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            326
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "org.jsoup.nodes.DocumentTest#testHtmlAndXmlSyntax: org.junit.ComparisonFailure: expected:<...  <img async checked[] src=\"&amp;<>&quot;\"...> but was:<...  <img async checked[=\"checked\"] src=\"&amp;<>&quot;\"...>",
+            "org.jsoup.nodes.ElementTest#booleanAttributeOutput: org.junit.ComparisonFailure: expected:<...noshade nohref async[] autofocus=\"false\">> but was:<...noshade nohref async[=\"async\"] autofocus=\"false\">>"
+        ],
+        "validation_time": 64.10688710212708,
+        "response": "To fix the bug in the `html` function, we need to correct the condition that decides whether to write out the attribute value or not. The condition logic for the `checked` attribute is incorrect. Here is the corrected version of the function:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n                && (val == null || (val.equals(\"\") && Attribute.isBooleanAttribute(key))))) {\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val == null ? EmptyString : val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}\n```\n\nIn the corrected code, the condition `(val == null || (val.equals(\"\") && Attribute.isBooleanAttribute(key)))` will handle the cases where the value is null, an empty string, or equal to the attribute key for boolean attributes like `checked`. This should fix the bug and make the function behave correctly in the given test cases.",
+        "input_tokens": 269,
+        "output_tokens": 275,
+        "total_cost": 0.0008190000000000001
+    },
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n                && (val == null || (val.equals(\"\") && !Attribute.isBooleanAttribute(key)) || val.equals(key) && Attribute.isBooleanAttribute(key))) {\n            if (!val.equals(\"\")) {\n                accum.append(\"=\\\"\");\n                Entities.escape(accum, val, out, true, false, false);\n                accum.append('\"');\n            }\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            328
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[319,148] ')' expected"
+        ],
+        "validation_time": 4.364020109176636,
+        "response": "To fix the bug, we need to handle the case where the attribute value is an empty string. We should not append the equal sign and double quotes when the value is an empty string.\n\nHere is the corrected function:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n                && (val == null || (val.equals(\"\") && !Attribute.isBooleanAttribute(key)) || val.equals(key) && Attribute.isBooleanAttribute(key))) {\n            if (!val.equals(\"\")) {\n                accum.append(\"=\\\"\");\n                Entities.escape(accum, val, out, true, false, false);\n                accum.append('\"');\n            }\n        }\n    }\n}\n```\n\nThis should fix the bug where an empty string attribute value was not handled correctly, causing the test case to fail.",
+        "input_tokens": 269,
+        "output_tokens": 238,
+        "total_cost": 0.000745
+    },
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n            && (val == null || (val.isEmpty() && Attribute.isBooleanAttribute(key)) || val.equals(key) && Attribute.isBooleanAttribute(key))) {\n            \n            accum.append(\"=\\\"\");\n            if (val != null) {\n                Entities.escape(accum, val, out, true, false, false);\n            }\n            accum.append('\"');\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            330
+        ],
+        "status": "[CE]",
+        "error_message": [
+            "[320,142] ')' expected"
+        ],
+        "validation_time": 4.462786912918091,
+        "response": "To fix the bug in the `html` function, we need to address the issue where the empty attribute values are not handled correctly. We should omit the `=` sign if the attribute value is empty, rather than appending an empty string. \n\nHere is the corrected version of the `html` function:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n            && (val == null || (val.isEmpty() && Attribute.isBooleanAttribute(key)) || val.equals(key) && Attribute.isBooleanAttribute(key))) {\n            \n            accum.append(\"=\\\"\");\n            if (val != null) {\n                Entities.escape(accum, val, out, true, false, false);\n            }\n            accum.append('\"');\n        }\n    }\n}\n```\n\nBy checking if the attribute value is empty and is a boolean attribute, we ensure that the output is generated correctly for test cases like the one mentioned, where the empty attribute value needs to be handled without appending an empty string.",
+        "input_tokens": 269,
+        "output_tokens": 286,
+        "total_cost": 0.000841
+    },
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // handle boolean attributes\n        if (val != null && !val.equals(key) && !(out.syntax() == Document.OutputSettings.Syntax.html && Attribute.isBooleanAttribute(key))) {\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            326
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "org.jsoup.nodes.ElementTest#booleanAttributeOutput: org.junit.ComparisonFailure: expected:<...href async autofocus[=\"false\"]>> but was:<...href async autofocus[]>>",
+            "org.jsoup.nodes.DocumentTest#testHtmlAndXmlSyntax: org.junit.ComparisonFailure: expected:<... <body>\n  <img async[=\"\" checked=\"checked\"] src=\"&amp;<>&quot;\"...> but was:<... <body>\n  <img async[ checked] src=\"&amp;<>&quot;\"...>",
+            "org.jsoup.parser.XmlTreeBuilderTest#testDoesHandleEOFInTag: org.junit.ComparisonFailure: expected:<...onerror=\"alert(1)\" x[=\"\"] />> but was:<...onerror=\"alert(1)\" x[] />>"
+        ],
+        "validation_time": 66.21158409118652,
+        "response": "It seems like the issue is related to the handling of boolean attributes in the `html` function. Boolean attributes are special in HTML because they do not have a value, they are either present (e.g., \"checked\") or absent. To handle boolean attributes correctly, the value should not be printed if it is equal to the key of the attribute.\n\nHere is the corrected `html` function:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // handle boolean attributes\n        if (val != null && !val.equals(key) && !(out.syntax() == Document.OutputSettings.Syntax.html && Attribute.isBooleanAttribute(key))) {\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}\n```\n\nThis corrected version should properly handle boolean attributes and prevent the extra quotes from being added when the value is an empty string.",
+        "input_tokens": 269,
+        "output_tokens": 250,
+        "total_cost": 0.000769
+    },
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // handle boolean attributes and collapse checked=null, checked=\"\", checked=checked; write out others\n        if (val != null) {\n            if (out.syntax() == Document.OutputSettings.Syntax.html\n                && (val.isEmpty() || val.equals(key) || Attribute.isBooleanAttribute(key))) {\n                // Do not write the value for empty strings, self-referencing values, and boolean attributes\n            } else {\n                accum.append(\"=\\\"\");\n                Entities.escape(accum, val, out, true, false, false);\n                accum.append('\"');\n            }\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            330
+        ],
+        "status": "[CE]",
+        "error_message": "",
+        "validation_time": 7.078555583953857,
+        "response": "To fix the bug in the `html` function, we need to correct the condition for writing attribute values. The condition should check whether the attribute key is a boolean attribute and handle the cases where the attribute value is `null`, empty string, or equal to the key. Here is the corrected function:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // handle boolean attributes and collapse checked=null, checked=\"\", checked=checked; write out others\n        if (val != null) {\n            if (out.syntax() == Document.OutputSettings.Syntax.html\n                && (val.isEmpty() || val.equals(key) || Attribute.isBooleanAttribute(key))) {\n                // Do not write the value for empty strings, self-referencing values, and boolean attributes\n            } else {\n                accum.append(\"=\\\"\");\n                Entities.escape(accum, val, out, true, false, false);\n                accum.append('\"');\n            }\n        }\n    }\n}\n```\n\nThis corrected function will handle the cases where the attribute value is `null`, empty, or equal to the key appropriately, based on the conditions for boolean attributes and self-referencing values.",
+        "input_tokens": 269,
+        "output_tokens": 287,
+        "total_cost": 0.000843
+    },
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n            && (val != null && !val.isEmpty() && !val.equals(key) || !Attribute.isBooleanAttribute(key)))) {\n\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val == null ? EmptyString : val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            328
+        ],
+        "status": "[CE]",
+        "error_message": "",
+        "validation_time": 5.852468013763428,
+        "response": "To fix the bug in the `html` method, we need to adjust the condition for handling boolean attributes. Here is the corrected version of the method:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n            && (val != null && !val.isEmpty() && !val.equals(key) || !Attribute.isBooleanAttribute(key)))) {\n\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val == null ? EmptyString : val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}\n```\n\nIn this corrected version, the condition for handling boolean attributes has been adjusted to ensure that attributes with empty values are not mistakenly written out. This modification should fix the bug reported in the test case.",
+        "input_tokens": 269,
+        "output_tokens": 241,
+        "total_cost": 0.000751
+    },
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n            && (val == null || (val.isEmpty() && Attribute.isBooleanAttribute(key))))) {\n\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val == null ? EmptyString : val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            328
+        ],
+        "status": "[CE]",
+        "error_message": "",
+        "validation_time": 7.2695393562316895,
+        "response": "To fix the bug in the provided function, we need to make the following changes to correctly handle the condition for writing out attribute values based on HTML syntax and the type of attribute.\n\nHere is the corrected version of the `html` function:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n            && (val == null || (val.isEmpty() && Attribute.isBooleanAttribute(key))))) {\n\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val == null ? EmptyString : val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}\n```\n\nIn the corrected version of the function, the `if` condition now correctly handles the case where the value is an empty string for a boolean attribute, which should not be written out in HTML.",
+        "input_tokens": 269,
+        "output_tokens": 252,
+        "total_cost": 0.000773
+    },
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n                && (val == null || (val.isEmpty() && Attribute.isBooleanAttribute(key)) || val.equals(key) && Attribute.isBooleanAttribute(key)))) {\n\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val == null ? EmptyString : val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            328
+        ],
+        "status": "[CE]",
+        "error_message": "",
+        "validation_time": 7.139626502990723,
+        "response": "To fix the bug in the `html` function, we need to correct the condition for checking boolean attributes and handle the case where the attribute value is an empty string. Here is the corrected function:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n                && (val == null || (val.isEmpty() && Attribute.isBooleanAttribute(key)) || val.equals(key) && Attribute.isBooleanAttribute(key)))) {\n\n            accum.append(\"=\\\"\");\n            Entities.escape(accum, val == null ? EmptyString : val, out, true, false, false);\n            accum.append('\"');\n        }\n    }\n}\n```\n\nThis correction should address the issue with boolean attributes and handle the case where the attribute value is an empty string. This should fix the failing test case.",
+        "input_tokens": 269,
+        "output_tokens": 246,
+        "total_cost": 0.0007610000000000001
+    },
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n                && (val != null || !Attribute.isBooleanAttribute(key)))) {\n            if (val == null || val.equals(\"\") || (val.equals(key) && Attribute.isBooleanAttribute(key))) {\n                // do not append attribute value for boolean attributes\n            } else {\n                accum.append(\"=\\\"\");\n                Entities.escape(accum, val, out, true, false, false);\n                accum.append('\"');\n            }\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            331
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "org.jsoup.nodes.DocumentTest#testMetaCharsetUpdateNoCharset: org.junit.ComparisonFailure: expected:<...ead>\n  <meta charset[=\"UTF-8\"]>\n </head>\n <body></...> but was:<...ead>\n  <meta charset[]>\n </head>\n <body></...>",
+            "org.jsoup.nodes.ElementTest#parentlessToString: org.junit.ComparisonFailure: expected:<<img src[=\"foo\"]>> but was:<<img src[]>>",
+            "org.jsoup.nodes.DocumentTest#testMetaCharsetUpdateCleanup: org.junit.ComparisonFailure: expected:<...ead>\n  <meta charset[=\"UTF-8\"]>\n </head>\n <body></...> but was:<...ead>\n  <meta charset[]>\n </head>\n <body></...>",
+            "org.jsoup.nodes.DocumentTest#testOutputEncoding: org.junit.ComparisonFailure: expected:<<p title[=\"π\"]>π &amp; &lt; &gt; <...> but was:<<p title[]>π &amp; &lt; &gt; <...>",
+            "org.jsoup.nodes.DocumentTest#testMetaCharsetUpdateIso8859: org.junit.ComparisonFailure: expected:<...ead>\n  <meta charset[=\"ISO-8859-1\"]>\n </head>\n <body></...> but was:<...ead>\n  <meta charset[]>\n </head>\n <body></...>",
+            "org.jsoup.nodes.DocumentTest#testMetaCharsetUpdateUtf8: org.junit.ComparisonFailure: expected:<...ead>\n  <meta charset[=\"UTF-8\"]>\n </head>\n <body></...> but was:<...ead>\n  <meta charset[]>\n </head>\n <body></...>",
+            "org.jsoup.nodes.ElementTest#testOuterHtml: org.junit.ComparisonFailure: expected:<...ead><body><div title[=\"Tags &amp;c.\"><img src=\"foo.png\"]><p><!-- comment -->...> but was:<...ead><body><div title[><img src]><p><!-- comment -->...>",
+            "org.jsoup.nodes.DocumentTest#testMetaCharsetUpdateDisabledNoChanges: org.junit.ComparisonFailure: expected:<...ead>\n  <meta charset[=\"dontTouch\">\n  <meta name=\"charset\" content=\"dontTouch\"]>\n </head>\n <body></...> but was:<...ead>\n  <meta charset[>\n  <meta name content]>\n </head>\n <body></...>",
+            "org.jsoup.nodes.DocumentTest#testHtmlAndXmlSyntax: org.junit.ComparisonFailure: expected:<...mg async checked src[=\"&amp;<>&quot;\"]>&lt;&gt;&amp;\"\n  <f...> but was:<...mg async checked src[]>&lt;&gt;&amp;\"\n  <f...>",
+            "org.jsoup.nodes.DocumentTest#testClone: org.junit.ComparisonFailure: expected:<...> </head><body><p id[=\"1\"]>One more</p><p>Two<...> but was:<...> </head><body><p id[]>One more</p><p>Two<...>"
+        ],
+        "validation_time": 64.94803071022034,
+        "response": "To fix the bug in the provided function, we need to ensure that the function correctly handles boolean attributes in the HTML output. Here is the corrected function:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        // inlined from Attribute.html()\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // collapse checked=null, checked=\"\", checked=checked; write out others\n        if (!(out.syntax() == Document.OutputSettings.Syntax.html\n                && (val != null || !Attribute.isBooleanAttribute(key)))) {\n            if (val == null || val.equals(\"\") || (val.equals(key) && Attribute.isBooleanAttribute(key))) {\n                // do not append attribute value for boolean attributes\n            } else {\n                accum.append(\"=\\\"\");\n                Entities.escape(accum, val, out, true, false, false);\n                accum.append('\"');\n            }\n        }\n    }\n}\n```\n\nThis corrected version of the function correctly handles boolean attributes in the HTML output by not appending attribute values for boolean attributes that are either null, empty, or equal to the attribute key. This should resolve the bug causing the failing test case.",
+        "input_tokens": 269,
+        "output_tokens": 272,
+        "total_cost": 0.0008130000000000001
+    },
+    {
+        "patch": "final void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // check if attribute is boolean and handle its value accordingly\n        if (val != null) {\n            if (out.syntax() == Document.OutputSettings.Syntax.html && Attribute.isBooleanAttribute(key)) {\n                // boolean attribute, no need to add value\n            } else {\n                accum.append(\"=\\\"\");\n                Entities.escape(accum, val, out, true, false, false);\n                accum.append('\"');\n            }\n        }\n    }\n}",
+        "patched_method_loc": [
+            310,
+            329
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "org.jsoup.nodes.ElementTest#booleanAttributeOutput: org.junit.ComparisonFailure: expected:<...href async autofocus[=\"false\"]>> but was:<...href async autofocus[]>>",
+            "org.jsoup.parser.XmlTreeBuilderTest#testDoesHandleEOFInTag: org.junit.ComparisonFailure: expected:<...onerror=\"alert(1)\" x[=\"\"] />> but was:<...onerror=\"alert(1)\" x[] />>",
+            "org.jsoup.nodes.DocumentTest#testHtmlAndXmlSyntax: org.junit.ComparisonFailure: expected:<... <body>\n  <img async[=\"\"] checked=\"checked\" s...> but was:<... <body>\n  <img async[] checked=\"checked\" s...>"
+        ],
+        "validation_time": 66.98825192451477,
+        "response": "The bug is caused by incorrect handling of boolean attributes in the `html` function. To fix the bug, we need to properly check if the attribute is a boolean attribute and then handle its value accordingly.\n\nHere is the corrected version of the `html` function:\n\n```java\nfinal void html(final Appendable accum, final Document.OutputSettings out) throws IOException {\n    final int sz = size;\n    for (int i = 0; i < sz; i++) {\n        final String key = keys[i];\n        final String val = vals[i];\n        accum.append(' ').append(key);\n\n        // check if attribute is boolean and handle its value accordingly\n        if (val != null) {\n            if (out.syntax() == Document.OutputSettings.Syntax.html && Attribute.isBooleanAttribute(key)) {\n                // boolean attribute, no need to add value\n            } else {\n                accum.append(\"=\\\"\");\n                Entities.escape(accum, val, out, true, false, false);\n                accum.append('\"');\n            }\n        }\n    }\n}\n```\n\nIn this corrected version, we first check if the attribute is boolean and then handle its value accordingly. For boolean attributes, we don't add a value to the attribute in the output.",
+        "input_tokens": 269,
+        "output_tokens": 249,
+        "total_cost": 0.000767
+    }
+]

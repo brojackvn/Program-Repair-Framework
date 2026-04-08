@@ -1,0 +1,16 @@
+[
+    {
+        "patch": "public static boolean copyFolder(File source, File target, Logger log) {\n    Path sourcePath = source.toPath();\n    Path destPath = target.toPath();\n    try (Stream<Path> files = Files.walk(source.toPath())) {\n        files.forEachOrdered(src -> {\n            try {\n                Files.copy(src, destPath.resolve(sourcePath.relativize(src)));\n            } catch (IOException e) {\n                log.warning(e.getMessage());\n            }\n        });\n        return true;\n    } catch (IOException e) {\n        log.warning(e.getMessage());\n        return false;\n    }\n}",
+        "patched_method_loc": [
+            71,
+            88
+        ],
+        "status": "[Plausible]",
+        "error_message": null,
+        "validation_time": 43.65516495704651,
+        "response": "### Analysis:\n\n1. Bug-Inducing Changes:\n    - The bug-inducing changes replace the original implementation using `org.apache.commons.io.FileUtils.copyDirectory` with a new implementation using `Files.copy` for each file within a directory.\n    - The changes introduced a new implementation that walks through each file in the source directory and copies it to the destination directory using `Files.copy`.\n    - The use of `sourcePath.resolve(destPath.relativize(src))` to determine the target path for each file copy is causing the issue.\n\n2. Root Cause:\n    - The bug is in the way the target path is calculated within the `Files.copy` method. The method should use `destPath` to resolve the target path instead of `sourcePath`.\n\n### Proposed Fix:\nHere is the corrected version of the `copyFolder` method with the target path resolution fixed:\n\n```java\npublic static boolean copyFolder(File source, File target, Logger log) {\n    Path sourcePath = source.toPath();\n    Path destPath = target.toPath();\n    try (Stream<Path> files = Files.walk(source.toPath())) {\n        files.forEachOrdered(src -> {\n            try {\n                Files.copy(src, destPath.resolve(sourcePath.relativize(src)));\n            } catch (IOException e) {\n                log.warning(e.getMessage());\n            }\n        });\n        return true;\n    } catch (IOException e) {\n        log.warning(e.getMessage());\n        return false;\n    }\n}\n``` \n\n### Summary:\nThe bug in the original implementation was caused by using the incorrect path resolution logic when copying files from the source directory to the target directory. By fixing the resolution of the target path to use `destPath` instead of `sourcePath`, the issue has been resolved.",
+        "input_tokens": 380,
+        "output_tokens": 356,
+        "total_cost": 0.001092
+    }
+]

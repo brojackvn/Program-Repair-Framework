@@ -1,0 +1,16 @@
+[
+    {
+        "patch": "    @final\n    def _format_data(self, name=None) -> str_t:\n        \"\"\"\n        Return the formatted data as a unicode string.\n        \"\"\"\n        # do we want to justify (only do so for non-objects)\n        is_justify = True\n\n        if self.inferred_type == \"string\":\n            is_justify = False\n        elif isinstance(self.dtype, CategoricalDtype):\n            self = cast(\"CategoricalIndex\", self)\n            if is_object_dtype(self.categories.dtype) or self.categories.inferred_type == \"string\":\n                is_justify = False\n        elif isinstance(self, ABCRangeIndex):\n            # We will do the relevant formatting via attrs\n            return \"\"\n\n        return format_object_summary(\n            self,\n            self._formatter_func,\n            is_justify=is_justify,\n            name=name,\n            line_break_each_value=self._is_multi,\n        )\n",
+        "patched_method_loc": [
+            1406,
+            1431
+        ],
+        "status": "[Plausible]",
+        "error_message": null,
+        "validation_time": 2.506579875946045,
+        "response": "Based on the provided bug-inducing commit message and the failing test cases, it appears that the issue arises when handling CategoricalDtype, specifically when the `self.categories.dtype` is of string type. The `is_justify` flag needs to be handled appropriately to fix the test cases related to string categories.\n\nHere's the corrected function:\n\n```python\n    @final\n    def _format_data(self, name=None) -> str_t:\n        \"\"\"\n        Return the formatted data as a unicode string.\n        \"\"\"\n        # do we want to justify (only do so for non-objects)\n        is_justify = True\n\n        if self.inferred_type == \"string\":\n            is_justify = False\n        elif isinstance(self.dtype, CategoricalDtype):\n            self = cast(\"CategoricalIndex\", self)\n            if is_object_dtype(self.categories.dtype) or self.categories.inferred_type == \"string\":\n                is_justify = False\n        elif isinstance(self, ABCRangeIndex):\n            # We will do the relevant formatting via attrs\n            return \"\"\n\n        return format_object_summary(\n            self,\n            self._formatter_func,\n            is_justify=is_justify,\n            name=name,\n            line_break_each_value=self._is_multi,\n        )\n```\n\n### Explanation:\n\n- The key modification is in the `elif` branch that checks for `CategoricalDtype`. Initially, the justification was disabled if the categories were of object type. The fix extends this condition to also check if the categories' `inferred_type` is `\"string\"`. This adjustment is necessary because string categories should not be justified, as identified from the failing test cases.\n\nThis change should address the regression and pass the failing test cases that involve string categories in `CategoricalIndex`.",
+        "input_tokens": 1941,
+        "output_tokens": 357,
+        "total_cost": 0.0084225
+    }
+]

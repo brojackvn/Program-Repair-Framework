@@ -1,0 +1,16 @@
+[
+    {
+        "patch": "    def add_annotation(self, annotation, alias, select=True):\n        \"\"\"Add a single annotation expression to the Query.\"\"\"\n        self.check_alias(alias)\n        annotation = annotation.resolve_expression(self, allow_joins=True, reuse=None)\n        if select:\n            self.append_annotation_mask([alias])\n            if self.selected is not None:\n                self.selected[alias] = alias\n        else:\n            self.set_annotation_mask(set(self.annotation_select).difference({alias}))\n        self.annotations[alias] = annotation\n",
+        "patched_method_loc": [
+            1215,
+            1226
+        ],
+        "status": "[Plausible]",
+        "error_message": null,
+        "validation_time": 1.0206968784332275,
+        "response": "To diagnose and correct the issue, we need to analyze the code's logic, particularly focusing on how annotations and selections are handled. The problem seems to be related to how the `selected` property is managed, causing the query to return incorrect results.\n\nThe critical area in the bug-inducing commit is the conditional code that updates `self.selected` based on `select` flag and `alias`. Specifically, the logic for managing the `selected` dictionary is flawed. This is evidenced by the assertion failure in the test case.\n\nWhen `select` is `False`, we are supposed to remove the alias from the selection mask, ensuring that the annotation is only added to the annotations dictionary and not to the selections. However, the logic for removing the alias from `self.selected` is not clear.\n\nTo fix this, we need to ensure that the alias is not added to `self.selected` if `select` is `False`. Let's correct the function:\n\n```python\n    def add_annotation(self, annotation, alias, select=True):\n        \"\"\"Add a single annotation expression to the Query.\"\"\"\n        self.check_alias(alias)\n        annotation = annotation.resolve_expression(self, allow_joins=True, reuse=None)\n        if select:\n            self.append_annotation_mask([alias])\n            if self.selected is not None:\n                self.selected[alias] = alias\n        else:\n            self.set_annotation_mask(set(self.annotation_select).difference({alias}))\n        self.annotations[alias] = annotation\n```\n\n### Key Changes:\n- The addition to `self.selected` is now conditional on the `select` flag being `True`. This ensures that the alias is only added to `selected` if it's intended to be included in the select clause.\n- We kept the original logic for updating the annotations and the annotation mask. The bug-inducing commit had correct logic in that aspect, just misapplied conditions for `self.selected`. \n\nThe test case failing due to mismatched tuples is expected to pass now since the logic respects the conditional selection of aliases for the query result.",
+        "input_tokens": 755,
+        "output_tokens": 411,
+        "total_cost": 0.0059975
+    }
+]

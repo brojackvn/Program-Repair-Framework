@@ -1,0 +1,87 @@
+[
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    int copyLength = Math.min(row.length, indexesToWrite.length);\n\n    for (int i = 0; i < copyLength; i++) {\n        if (indexesToWrite[i] != -1) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            920
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]"
+        ],
+        "validation_time": 32.49697470664978,
+        "response": "### Root Cause Analysis:\n\n1. In the bug-inducing changes, the initial logic of handling `outputRow` resizing based on `row.length` and `outputRow.length` was changed. This change introduced a bug where the `outputRow` might not be resized correctly based on the lengths of `row` and `indexesToWrite`.\n\n2. Specifically, the `outputRow` resizing logic was modified to only resize `outputRow` when `row.length` is greater than `indexesToWrite.length`, which is incorrect. This leads to incorrect handling when `row.length` is smaller than `indexesToWrite.length`.\n\n3. The loop in the `else` block was changed to iterate until `row.length` or `indexesToWrite.length`, whichever is smaller. This can cause `ArrayIndexOutOfBoundsException` when `row.length` is smaller than `indexesToWrite.length`.\n\n### Regression Fix:\nHere is the corrected function:\n\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    int copyLength = Math.min(row.length, indexesToWrite.length);\n\n    for (int i = 0; i < copyLength; i++) {\n        if (indexesToWrite[i] != -1) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}\n```\n\n### Explanation of Fix:\n1. The function now correctly resizes `outputRow` based on the length of `row` if `columnReorderingEnabled` is disabled and `row.length` is greater than the current length of `outputRow`.\n2. The loop now iterates up to the minimum of `row.length` and `indexesToWrite.length` to prevent `ArrayIndexOutOfBoundsException`.\n3. It sets the value from `row` to `outputRow` only if the corresponding index in `indexesToWrite` is not `-1`.\n\nApplying this fix should resolve the regression bug introduced in the code.",
+        "input_tokens": 685,
+        "output_tokens": 424,
+        "total_cost": 0.001533
+    },
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    for (int i = 0; i < Math.min(row.length, indexesToWrite.length); i++) {\n        if (indexesToWrite[i] != -1 && indexesToWrite[i] < outputRow.length) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            918
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]"
+        ],
+        "validation_time": 32.3449170589447,
+        "response": "### Root Cause Analysis:\n1. The root cause of the issue lies in the logic used to copy values from the `row` array to the `outputRow` array. The current logic of iterating over `indexesToWrite` array and copying values from `row` to `outputRow` based on the indexes in `indexesToWrite` array is incorrect.\n2. The issue arises because the indexes in `indexesToWrite` array may not necessarily correspond to the indexes in the `outputRow` array, leading to incorrect value assignment and potential `ArrayIndexOutOfBoundsException`.\n\n### Regression Fix:\nHere is the corrected function:\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    for (int i = 0; i < Math.min(row.length, indexesToWrite.length); i++) {\n        if (indexesToWrite[i] != -1 && indexesToWrite[i] < outputRow.length) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}\n```\n\n### Explanation of Fix:\n1. The corrected function correctly resizes `outputRow` based on the length of `row` if `columnReorderingEnabled` is disabled and `row.length` is greater than the current length of `outputRow`.\n2. The loop now iterates up to the minimum of `row.length` and `indexesToWrite.length` to prevent `ArrayIndexOutOfBoundsException`.\n3. It sets the value from `row` to `outputRow` only if the corresponding index in `indexesToWrite` is not `-1` and the index is within the bounds of `outputRow`.\n\nApplying this fix should address the regression bug and correctly copy values from the `row` array to the `outputRow` array based on the indexes specified in the `indexesToWrite` array.",
+        "input_tokens": 1249,
+        "output_tokens": 401,
+        "total_cost": 0.0020510000000000003
+    },
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    for (int i = 0; i < indexesToWrite.length; i++) {\n        if (indexesToWrite[i] != -1 && indexesToWrite[i] < outputRow.length && i < row.length) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            918
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]"
+        ],
+        "validation_time": 32.09996438026428,
+        "response": "### Root Cause Analysis:\n1. The root cause of the issue lies in the incorrect handling of indexes while copying values from the `row` array to the `outputRow` array based on the `indexesToWrite` array.\n2. The issue is that the incorrect indexes are being used to access elements in `outputRow` based on the values in `indexesToWrite` array.\n\n### Regression Fix:\nHere is the corrected function:\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    for (int i = 0; i < indexesToWrite.length; i++) {\n        if (indexesToWrite[i] != -1 && indexesToWrite[i] < outputRow.length && i < row.length) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}\n```\n\n### Explanation of Fix:\n1. The corrected function ensures that the loop iterates over `indexesToWrite` array to correctly access the indexes in `outputRow`.\n2. It checks if the index in `indexesToWrite` is not `-1`, and it is within the bounds of `outputRow` and `row` array before copying the value from `row` to the corresponding index in `outputRow`.\n\nApplying this fix should address the regression bug and correctly copy values from the `row` array to the `outputRow` array based on the specified indexes in the `indexesToWrite` array.",
+        "input_tokens": 1790,
+        "output_tokens": 325,
+        "total_cost": 0.0024400000000000003
+    },
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    for (int i = 0; i < indexesToWrite.length && i < row.length; i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < outputRow.length) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            918
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]"
+        ],
+        "validation_time": 32.44403862953186,
+        "response": "### Root Cause Analysis:\n1. The root cause of the issue lies in the incorrect logic used to copy values from the `row` array to the `outputRow` array based on the `indexesToWrite` array.\n2. The issue arises from the incorrect handling of the indexes in the `row` array and the `outputRow` array, leading to values not being copied correctly.\n\n### Regression Fix:\nHere is the corrected function:\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    for (int i = 0; i < indexesToWrite.length && i < row.length; i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < outputRow.length) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}\n```\n\n### Explanation of Fix:\n1. The corrected function iterates over the `indexesToWrite` array and `row` array simultaneously to ensure correct index handling.\n2. It checks if the index in `indexesToWrite` is non-negative and within the bounds of `outputRow` before copying the value from `row` to the corresponding index in `outputRow`.\n\nApplying this fix should resolve the regression bug and correctly copy values from the `row` array to the `outputRow` array based on the specified indexes in the `indexesToWrite` array.",
+        "input_tokens": 2255,
+        "output_tokens": 316,
+        "total_cost": 0.002887
+    },
+    {
+        "patch": "private <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    for (int i = 0; i < indexesToWrite.length && i < row.length; i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < outputRow.length) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}",
+        "patched_method_loc": [
+            907,
+            918
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "com.univocity.parsers.common.AbstractWriterTest#testExcludeFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]",
+            "com.univocity.parsers.common.AbstractWriterTest#testSelectFields: com.univocity.parsers.common.TextWritingException: Error writing row.\nInternal state when error was thrown: recordCount=0, recordData=[V1, V2, V3]"
+        ],
+        "validation_time": 32.22094368934631,
+        "response": "### Root Cause Analysis:\n1. The root cause of the issue lies in incorrect index handling and value assignment in the `fillOutputRow` method.\n2. The incorrect indexing logic is causing incorrect values to be assigned from the `row` array to the `outputRow` array, leading to the observed test failures.\n\n### Regression Fix:\nHere is the corrected function:\n```java\nprivate <T> void fillOutputRow(T[] row) {\n    if (!columnReorderingEnabled && row.length > outputRow.length) {\n        outputRow = Arrays.copyOf(outputRow, row.length);\n    }\n\n    for (int i = 0; i < indexesToWrite.length && i < row.length; i++) {\n        if (indexesToWrite[i] >= 0 && indexesToWrite[i] < outputRow.length) {\n            outputRow[indexesToWrite[i]] = row[i];\n        }\n    }\n}\n```\n\n### Explanation of Fix:\n1. The corrected function iterates over both the `indexesToWrite` array and `row` array simultaneously to ensure correct index handling for value assignment.\n2. It checks if the index in `indexesToWrite` is non-negative and within the bounds of `outputRow` before assigning the value from the `row` array to the corresponding index in the `outputRow` array.\n\nApplying this fix should address the regression bug and correctly copy values from the `row` array to the `outputRow` array based on the specified indexes in the `indexesToWrite` array.",
+        "input_tokens": 2711,
+        "output_tokens": 310,
+        "total_cost": 0.0033309999999999998
+    }
+]

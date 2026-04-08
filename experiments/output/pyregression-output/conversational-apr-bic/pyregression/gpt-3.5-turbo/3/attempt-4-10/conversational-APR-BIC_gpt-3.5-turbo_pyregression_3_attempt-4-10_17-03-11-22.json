@@ -1,0 +1,80 @@
+[
+    {
+        "patch": "    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            import pyarrow.compute as pc\n            import pyarrow as pa\n            parr = result._pa_array\n            mask = pc.is_nan(parr).to_numpy()\n            arr = pc.replace_with_mask(parr, mask, pa.scalar(None, type=parr.type))\n            result = type(self)(arr)\n        return result\n",
+        "patched_method_loc": [
+            1033,
+            1060
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "- Test: pandas.tests.extension.test_arrow::test_pow_with_all_na_float - Type: pyarrow.lib.ArrowNotImplementedError: Function 'replace_with_mask' has no kernel matching input types (double, null, double) - Message: def test_pow_with_all_na_float():\n        # GH#62520\n    \n        s = pd.Series([None, None], dtype=\"float64[pyarrow]\")\n>       result = s.pow(2)\n                 ^^^^^^^^\n\npandas/tests/extension/test_arrow.py:3699: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \npandas/core/series.py:6591: in pow\n    return self._flex_method(\npandas/core/series.py:6050: in _flex_method\n    return op(self, other)\n           ^^^^^^^^^^^^^^^\npandas/core/ops/common.py:70: in new_method\n    return method(self, other)\n           ^^^^^^^^^^^^^^^^^^^\npandas/core/arraylike.py:245: in __pow__\n    return self._arith_method(other, operator.pow)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+        ],
+        "validation_time": 3.0204899311065674,
+        "response": "```python\n    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            import pyarrow.compute as pc\n            import pyarrow as pa\n            parr = result._pa_array\n            mask = pc.is_nan(parr).to_numpy()\n            arr = pc.replace_with_mask(parr, mask, pa.scalar(None, type=parr.type))\n            result = type(self)(arr)\n        return result\n```",
+        "input_tokens": 848,
+        "output_tokens": 236,
+        "total_cost": 0.00132
+    },
+    {
+        "patch": "    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            arr = result._pa_array\n            mask = np.isnan(arr)\n            arr[mask] = np.nan\n            result = type(self)(arr)\n        return result\n",
+        "patched_method_loc": [
+            1033,
+            1058
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "- Test: pandas.tests.extension.test_arrow::test_pow_with_all_na_float - Type: TypeError: only integer scalar arrays can be converted to a scalar index - Message: def test_pow_with_all_na_float():\n        # GH#62520\n    \n        s = pd.Series([None, None], dtype=\"float64[pyarrow]\")\n>       result = s.pow(2)\n                 ^^^^^^^^\n\npandas/tests/extension/test_arrow.py:3699: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \npandas/core/series.py:6591: in pow\n    return self._flex_method(\npandas/core/series.py:6050: in _flex_method\n    return op(self, other)\n           ^^^^^^^^^^^^^^^\npandas/core/ops/common.py:70: in new_method\n    return method(self, other)\n           ^^^^^^^^^^^^^^^^^^^\npandas/core/arraylike.py:245: in __pow__\n    return self._arith_method(other, operator.pow)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+        ],
+        "validation_time": 3.040208578109741,
+        "response": "```python\n    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            arr = result._pa_array\n            mask = np.isnan(arr)\n            arr[mask] = np.nan\n            result = type(self)(arr)\n        return result\n```",
+        "input_tokens": 1381,
+        "output_tokens": 202,
+        "total_cost": 0.0017850000000000001
+    },
+    {
+        "patch": "    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            arr = result._pa_array.to_numpy(copy=True)\n            mask = np.isnan(arr)\n            arr[mask] = np.nan\n            result = type(self)(arr)\n        return result\n",
+        "patched_method_loc": [
+            1033,
+            1058
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "- Test: pandas.tests.extension.test_arrow::test_pow_with_all_na_float - Type: TypeError: to_numpy() got an unexpected keyword argument 'copy' - Message: def test_pow_with_all_na_float():\n        # GH#62520\n    \n        s = pd.Series([None, None], dtype=\"float64[pyarrow]\")\n>       result = s.pow(2)\n                 ^^^^^^^^\n\npandas/tests/extension/test_arrow.py:3699: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \npandas/core/series.py:6591: in pow\n    return self._flex_method(\npandas/core/series.py:6050: in _flex_method\n    return op(self, other)\n           ^^^^^^^^^^^^^^^\npandas/core/ops/common.py:70: in new_method\n    return method(self, other)\n           ^^^^^^^^^^^^^^^^^^^\npandas/core/arraylike.py:245: in __pow__\n    return self._arith_method(other, operator.pow)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+        ],
+        "validation_time": 2.961796522140503,
+        "response": "```python\n    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            arr = result._pa_array.to_numpy(copy=True)\n            mask = np.isnan(arr)\n            arr[mask] = np.nan\n            result = type(self)(arr)\n        return result\n```",
+        "input_tokens": 1865,
+        "output_tokens": 206,
+        "total_cost": 0.002277
+    },
+    {
+        "patch": "    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            arr = result._pa_array.to_numpy()\n            mask = np.isnan(arr)\n            arr[mask] = np.nan\n            result = type(self)(arr)\n        return result\n",
+        "patched_method_loc": [
+            1033,
+            1058
+        ],
+        "status": "[FE]",
+        "error_message": [
+            "- Test: pandas.tests.extension.test_arrow::test_pow_with_all_na_float - Type: ValueError: Unsupported type '<class 'numpy.ndarray'>' for ArrowExtensionArray - Message: def test_pow_with_all_na_float():\n        # GH#62520\n    \n        s = pd.Series([None, None], dtype=\"float64[pyarrow]\")\n>       result = s.pow(2)\n                 ^^^^^^^^\n\npandas/tests/extension/test_arrow.py:3699: \n_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ \npandas/core/series.py:6591: in pow\n    return self._flex_method(\npandas/core/series.py:6050: in _flex_method\n    return op(self, other)\n           ^^^^^^^^^^^^^^^\npandas/core/ops/common.py:70: in new_method\n    return method(self, other)\n           ^^^^^^^^^^^^^^^^^^^\npandas/core/arraylike.py:245: in __pow__\n    return self._arith_method(other, operator.pow)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^"
+        ],
+        "validation_time": 3.07204532623291,
+        "response": "```python\n    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            arr = result._pa_array.to_numpy()\n            mask = np.isnan(arr)\n            arr[mask] = np.nan\n            result = type(self)(arr)\n        return result\n```",
+        "input_tokens": 2353,
+        "output_tokens": 204,
+        "total_cost": 0.002761
+    },
+    {
+        "patch": "    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            arr = result._pa_array.to_numpy()\n            mask = np.isnan(arr)\n            arr[mask] = np.nan\n            return result._from_sequence(arr)\n        return result\n",
+        "patched_method_loc": [
+            1033,
+            1058
+        ],
+        "status": "[Plausible]",
+        "error_message": null,
+        "validation_time": 2.7855477333068848,
+        "response": "```python\n    def _arith_method(self, other, op) -> Self | npt.NDArray[np.object_]:\n        if (\n            op in [operator.truediv, roperator.rtruediv]\n            and isinstance(other, Path)\n            and (\n                pa.types.is_string(self._pa_array.type)\n                or pa.types.is_large_string(self._pa_array.type)\n            )\n        ):\n            # GH#61940\n            return np.array(\n                [\n                    op(x, other) if isinstance(x, str) else self.dtype.na_value\n                    for x in self\n                ],\n                dtype=object,\n            )\n\n        result = self._evaluate_op_method(other, op, ARROW_ARITHMETIC_FUNCS)\n        if is_nan_na() and result.dtype.kind == \"f\":\n            arr = result._pa_array.to_numpy()\n            mask = np.isnan(arr)\n            arr[mask] = np.nan\n            return result._from_sequence(arr)\n        return result\n```",
+        "input_tokens": 2841,
+        "output_tokens": 204,
+        "total_cost": 0.003249
+    }
+]

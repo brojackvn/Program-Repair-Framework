@@ -1,0 +1,16 @@
+[
+    {
+        "patch": "static UriComponentsBuilder getBuilder() {\n    HttpServletRequest request = getCurrentRequest();\n    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpRequest(new ServletServerHttpRequest(request));\n\n    // special case handling for X-Forwarded-Ssl:\n    // apply it, but only if X-Forwarded-Proto is unset.\n\n    String forwardedSsl = request.getHeader(\"X-Forwarded-Ssl\");\n    ForwardedHeader forwarded = ForwardedHeader.of(request.getHeader(ForwardedHeader.NAME));\n    String proto = hasText(forwarded.getProto()) ? forwarded.getProto() : request.getHeader(\"X-Forwarded-Proto\");\n\n    if (!hasText(proto) && hasText(forwardedSsl) && forwardedSsl.equalsIgnoreCase(\"on\")) {\n        builder.scheme(\"https\");\n    }\n\n    // Add the context path to the builder if it is present in the request\n    String contextPath = request.getContextPath();\n    if (hasText(contextPath)) {\n        builder.path(contextPath);\n    }\n\n    return builder;\n}",
+        "patched_method_loc": [
+            264,
+            287
+        ],
+        "status": "[Plausible]",
+        "error_message": null,
+        "validation_time": 113.19726276397705,
+        "response": "To fix the bug causing the error message, we need to ensure that the function correctly handles the scenario where the X-Forwarded-Proto header is not set and the X-Forwarded-Ssl header is present and equals \"on\". In this case, the scheme of the builder should be set to \"https\".\n\nHere is the corrected function:\n\n```java\nstatic UriComponentsBuilder getBuilder() {\n    HttpServletRequest request = getCurrentRequest();\n    UriComponentsBuilder builder = UriComponentsBuilder.fromHttpRequest(new ServletServerHttpRequest(request));\n\n    // special case handling for X-Forwarded-Ssl:\n    // apply it, but only if X-Forwarded-Proto is unset.\n\n    String forwardedSsl = request.getHeader(\"X-Forwarded-Ssl\");\n    ForwardedHeader forwarded = ForwardedHeader.of(request.getHeader(ForwardedHeader.NAME));\n    String proto = hasText(forwarded.getProto()) ? forwarded.getProto() : request.getHeader(\"X-Forwarded-Proto\");\n\n    if (!hasText(proto) && hasText(forwardedSsl) && forwardedSsl.equalsIgnoreCase(\"on\")) {\n        builder.scheme(\"https\");\n    }\n\n    // Add the context path to the builder if it is present in the request\n    String contextPath = request.getContextPath();\n    if (hasText(contextPath)) {\n        builder.path(contextPath);\n    }\n\n    return builder;\n}\n```\n\nThis fix includes adding the context path to the builder if it is present in the request, which should address the error message related to the test case `org.springframework.hateoas.mvc.ControllerLinkBuilderUnitTest#createsLinkRelativeToContextRoot`.",
+        "input_tokens": 268,
+        "output_tokens": 328,
+        "total_cost": 0.000924
+    }
+]
