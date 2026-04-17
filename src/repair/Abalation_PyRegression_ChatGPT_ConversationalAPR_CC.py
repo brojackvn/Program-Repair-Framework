@@ -138,10 +138,6 @@ class Abalation_PyRegression_ChatGPT_ConversationalAPR_CC(AbstractRepair):
                 logger.info(f">>>> Attempt {attempt+1:2d}/{self.attempts} >>>> Iteration {iteration+1}/{self.iterations} >>>> Generating patch ...")
                 if iteration == 0:
                     messages = self._format_prompt(bug_info["buggy_function"], formatted_failed_message, bug_info["bug_inducing_changes"], bug_info["changed_files"])
-                    print("Initial prompt:")
-                    for msg in messages:
-                        logger.info(f"{msg['role'].upper()}: {msg['content']}")
-                        print()
                 else:
                     messages = self._format_feedback_query(messages, response, error_status, error_message)
                 
