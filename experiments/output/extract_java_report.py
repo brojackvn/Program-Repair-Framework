@@ -156,7 +156,7 @@ def summary_attempt_and_iteration(setting, model):
         print(f"    + 5 <= x <= 10: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3])}")
         print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3]}")
         print("-" * 50)
-        
+
         print(f"Plausible (but incorrect) patches with x attempts and 4 <= y <= 5 iterations:")
         print(f"    + 1 <= x < 5: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5])}")
         print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5]}")
@@ -166,8 +166,6 @@ def summary_attempt_and_iteration(setting, model):
     else:
         print("This function has not been implemented for the prompt APR setting.")
         return
-
-    
 
 # ============================================================================
 # Patch Extraction Utilities
@@ -438,7 +436,7 @@ def main():
     model   = ["gpt-3.5-turbo", "gpt-4o"]
     bug_id  = int()
 
-    write_patches("conversational-apr-bic", "gpt-4o")
+    # write_patches("conversational-apr-bic", "gpt-4o")
 
 # =============================================================================
 # ENTRY POINT
