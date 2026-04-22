@@ -115,19 +115,19 @@ def summary_attempt_and_iteration(setting, model):
         print(f"    + 5 <= x <= 10: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and item[2] == 1])}")
         print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and item[2] == 1]}")
         print("-" * 50)
+        
+        print(f"Plausible (but incorrect) patches with x attempts and 2 <= y <= 3 iterations:")
+        print(f"    + 1 <= x < 5: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3])}")
+        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3]}")
+        print(f"    + 5 <= x <= 10: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3])}")
+        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3]}")
+        print("-" * 50)
 
         print(f"Plausible (but incorrect) patches with x attempts and 4 <= y <= 5 iterations:")
         print(f"    + 1 <= x < 5: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5])}")
         print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5]}")
         print(f"    + 5 <= x <= 10: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5])}")
         print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5]}")
-        print("-" * 50)
-
-        print(f"Plausible (but incorrect) patches with x attempts and 2 <= y <= 3 iterations:")
-        print(f"    + 1 <= x < 5: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3])}")
-        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3]}")
-        print(f"    + 5 <= x <= 10: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3])}")
-        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3]}")
         print("=" * 100)
 
         print("PYTHON EXPERIMENT SUMMARY")
@@ -150,18 +150,18 @@ def summary_attempt_and_iteration(setting, model):
         print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and item[2] == 1]}")
         print("-" * 50)
 
-        print(f"Plausible (but incorrect) patches with x attempts and 4 <= y <= 5 iterations:")
-        print(f"    + 1 <= x < 5: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5])}")
-        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5]}")
-        print(f"    + 5 <= x <= 10: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5])}")
-        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5]}")
-        print("-" * 50)
-
         print(f"Plausible (but incorrect) patches with x attempts and 2 <= y <= 3 iterations:")
         print(f"    + 1 <= x < 5: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3])}")
         print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3]}")
         print(f"    + 5 <= x <= 10: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3])}")
         print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3]}")
+        print("-" * 50)
+        
+        print(f"Plausible (but incorrect) patches with x attempts and 4 <= y <= 5 iterations:")
+        print(f"    + 1 <= x < 5: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5])}")
+        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5]}")
+        print(f"    + 5 <= x <= 10: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5])}")
+        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5]}")
         print("=" * 100)
     else:
         print("This function has not been implemented for the prompt APR setting.")
