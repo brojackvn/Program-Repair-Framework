@@ -21,6 +21,155 @@ def read_buggy_code(bug_id):
             return bug_data[bug]["context"]
 
 # ============================================================================
+# Extract the attempt and iteration number
+# ============================================================================
+def read_attempt_and_iteration(experiment_output_dir, dataset, setting, model):
+    """
+    This function only support the conversational APR setting.
+    Returns a list of tuples, where each tuple containes the bug_id, #attempt, and #iteration.
+    """
+    plausible_list = []
+    non_plausible_list = []
+
+    patch_folder = os.path.join(experiment_output_dir, setting, dataset, model)
+    bug_id_list = os.listdir(patch_folder)
+
+    for bug_id in bug_id_list:
+        bug_id_path = os.path.join(patch_folder, bug_id)
+        if not os.path.isdir(bug_id_path):
+            continue
+        
+        # Get the attempt folders for the current bug_id
+        attempt_folders = [f for f in os.listdir(bug_id_path) if f.startswith("attempt-")]
+        sorted_attempts = sorted(attempt_folders, key=lambda x: int(x.split("-")[1]))
+        last_attempt_count = int(sorted_attempts[-1].split("-")[1])
+        # print(f"Bug ID: {bug_id}, Last Attempt: {last_attempt_count}")
+        
+        last_attempt_path = os.path.join(bug_id_path, sorted_attempts[-1])
+        json_files = [f for f in os.listdir(last_attempt_path) if f.endswith(".json")]
+        for json_file in json_files:
+            if not json_file[0].isdigit():
+                file_path = os.path.join(last_attempt_path, json_files[0])
+                with open(file_path, 'r') as f:
+                    responses = json.load(f)
+                    iteration = 0
+                    plausible_found = False
+                    for response in responses:
+                        iteration += 1
+                        if response['status'] == "[Plausible]":
+                            plausible_list.append((bug_id, last_attempt_count, iteration))
+                            plausible_found = True
+                    if plausible_found == False:
+                        non_plausible_list.append((bug_id, last_attempt_count, iteration))
+
+    return plausible_list, non_plausible_list
+
+def read_attempt(file_path):
+    """
+    This function only support the prompt APR setting, which has the following file structure:
+    """
+    pass
+
+def summary_attempt_and_iteration(setting, model):
+    """
+    This is the summary of Java and Python APR experiments.
+    """
+    # Java experiment summary
+
+    if model == "gpt-4o":
+        if setting == "conversational-apr-bic":
+            java_correct_patch_list = ["3", "4", "5", "21", "22", "30", "40", "43", "48", "56", "62", "65", "69", "70", "78", "84", "85", "99", "100", "102", "108", "114", "117", "126", "136", "137", "139", "146", "147"]
+            python_correct_patch_list = ["4", "6", "9", "19", "20", "24", "28", "30", "35", "37"]
+            java_experiment_output_dir = os.path.join("/external_disk/coding_space/ChatRepairRegression/experiments/output/regminer4apr-output")
+            java_dataset = "regminer4apr"
+            python_experiment_output_dir = os.path.join("/external_disk/coding_space/ChatRepairRegression/experiments/output/pyregression-output")
+            python_dataset = "pyregression"
+        else:
+            print("This setting has not been implemented for the Java APR setting.")
+            return
+    else:
+        print("This function has not been implemented for the Java APR setting.")
+        return
+
+    print("=" * 100)
+    print(f"Setting: {setting}, Model: {model}")
+    print("=" * 100)
+    if "conversational-apr" in setting:
+        print("=" * 100)
+
+        print("JAVA EXPERIMENT SUMMARY")
+        print("=" * 100)
+        java_plausible_list, non_java_plausible_list = read_attempt_and_iteration(java_experiment_output_dir, java_dataset, setting, model)
+        print(f"Total number of plausible patches: {len(java_plausible_list)}")
+        print(f"Total number of non-plausible patches: {len(non_java_plausible_list)}")
+        print(f"Total number of Java correct patches: {len(java_correct_patch_list)}")
+        
+        print("-" * 50)
+        print(f"Non-plausible patches: {len(non_java_plausible_list)}")
+        print(f"List of non-plausible patches: {non_java_plausible_list}")
+        print("-" * 50)
+
+        print(f"Plausible (but incorrect) patches with x attempts and 0 iterations:")
+        print(f"    + 1 <= x < 5: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and item[2] == 1])}")
+        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and item[2] == 1]}")
+        print(f"    + 5 <= x <= 10: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and item[2] == 1])}")
+        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and item[2] == 1]}")
+        print("-" * 50)
+
+        print(f"Plausible (but incorrect) patches with x attempts and 4 <= y <= 5 iterations:")
+        print(f"    + 1 <= x < 5: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5])}")
+        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5]}")
+        print(f"    + 5 <= x <= 10: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5])}")
+        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5]}")
+        print("-" * 50)
+
+        print(f"Plausible (but incorrect) patches with x attempts and 2 <= y <= 3 iterations:")
+        print(f"    + 1 <= x < 5: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3])}")
+        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3]}")
+        print(f"    + 5 <= x <= 10: {len([item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3])}")
+        print(f"    List of these patches: {[item for item in java_plausible_list if item[0] not in java_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3]}")
+        print("=" * 100)
+
+        print("PYTHON EXPERIMENT SUMMARY")
+        print("=" * 100)
+        python_plausible_list, non_python_plausible_list = read_attempt_and_iteration(python_experiment_output_dir, python_dataset, setting, model)
+        print(f"Total number of plausible patches: {len(python_plausible_list)}")
+        # print(f"List of plausible patches: {sorted(python_plausible_list, key=lambda x: int(x[0]))}")
+        print(f"Total number of non-plausible patches: {len(non_python_plausible_list)}")
+        print(f"Total number of Python correct patches: {len(python_correct_patch_list)}")
+
+        print("-" * 50)
+        print(f"Non-plausible patches: {len(non_python_plausible_list)}")
+        print(f"List of non-plausible patches: {non_python_plausible_list}")
+        print("-" * 50)
+
+        print(f"Plausible (but incorrect) patches with x attempts and 0 iterations:")
+        print(f"    + 1 <= x < 5: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and item[2] == 1])}")
+        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and item[2] == 1]}")
+        print(f"    + 5 <= x <= 10: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and item[2] == 1])}")
+        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and item[2] == 1]}")
+        print("-" * 50)
+
+        print(f"Plausible (but incorrect) patches with x attempts and 4 <= y <= 5 iterations:")
+        print(f"    + 1 <= x < 5: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5])}")
+        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 4 <= item[2] <= 5]}")
+        print(f"    + 5 <= x <= 10: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5])}")
+        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 4 <= item[2] <= 5]}")
+        print("-" * 50)
+
+        print(f"Plausible (but incorrect) patches with x attempts and 2 <= y <= 3 iterations:")
+        print(f"    + 1 <= x < 5: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3])}")
+        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] < 5 and 2 <= item[2] <= 3]}")
+        print(f"    + 5 <= x <= 10: {len([item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3])}")
+        print(f"    List of these patches: {[item for item in python_plausible_list if item[0] not in python_correct_patch_list and item[1] >= 5 and 2 <= item[2] <= 3]}")
+        print("=" * 100)
+    else:
+        print("This function has not been implemented for the prompt APR setting.")
+        return
+
+    
+
+# ============================================================================
 # Patch Extraction Utilities
 # ============================================================================
 def read_plausible_patch(file):
@@ -261,14 +410,9 @@ def test_read_buggy_code():
 # =============================================================================
 # Constants
 # =============================================================================
-# EXPERIMENT_OUTPUT_DIR = "/external_disk/coding_space/ChatRepairRegression/experiments/ablation-output"
-EXPERIMENT_OUTPUT_DIR = "/external_disk/coding_space/ChatRepairRegression/experiments/ablation-output"
-
+EXPERIMENT_OUTPUT_DIR = "/external_disk/coding_space/ChatRepairRegression/experiments/output/regminer4apr-output"
 REGMINER4APR_BUG_JSON = "/external_disk/coding_space/ChatRepairRegression/experiments/regminer4apr-bug-metadata.json"
-
 DATASET = "regminer4apr"
-
-# PATCH_STORAGE_DIR = "/external_disk/coding_space/ChatRepairRegression/experiments/patches/ablation-patches/regminer4apr"
 PATCH_STORAGE_DIR = "/external_disk/coding_space/ChatRepairRegression/experiments/patches/regminer4apr-patches"
 
 # =============================================================================
@@ -284,13 +428,17 @@ def main():
     # ====================================
 
     # ====================================
+    summary_attempt_and_iteration("conversational-apr-bic", "gpt-4o")
+    # ====================================
+
+    # ====================================
     # Read patches and write to file
     # ====================================
     setting = ["prompt-apr", "prompt-apr-bic", "conversational-apr", "conversational-apr-bic", "conversational-apr-cc", "conversational-apr-cm"]
     model   = ["gpt-3.5-turbo", "gpt-4o"]
     bug_id  = int()
 
-    write_patches("conversational-apr-cm", "gpt-4o")
+    write_patches("conversational-apr-bic", "gpt-4o")
 
 # =============================================================================
 # ENTRY POINT
