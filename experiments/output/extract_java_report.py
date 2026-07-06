@@ -237,7 +237,7 @@ def write_patches(setting, model):
     patches = {}
 
     if "conversational-apr" in setting:
-        for bug_id in range(1, 151):
+        for bug_id in range(1, 153):
             plausible, response = read_conversational_apr(setting, model, bug_id)
             if plausible is not None:
                 patches[str(bug_id)] = {
@@ -246,7 +246,7 @@ def write_patches(setting, model):
                     "response": response
                 }
     else:
-        for bug_id in range(1, 151):
+        for bug_id in range(1, 153):
             plausible_patch, response = read_prompt_apr(setting, model, bug_id)
             if plausible_patch is not None:
                 patches[str(bug_id)] = {
